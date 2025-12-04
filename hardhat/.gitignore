@@ -24,3 +24,7 @@
 
 # Test
 /test
+
+# Contracts
+/contracts/fakeOracle
+/contracts/fakeToken

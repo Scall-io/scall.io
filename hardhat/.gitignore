@@ -18,3 +18,9 @@
 
 # Hardhat coverage reports
 /coverage
+
+# Old test
+/old_test
+
+# Test
+/test

@@ -26,5 +26,5 @@
 /test
 
 # Contracts
-/contracts/fakeOracle
-/contracts/fakeToken
+/contracts/fakeOracle.sol
+/contracts/fakeToken.sol

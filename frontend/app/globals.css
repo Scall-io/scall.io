@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+
+/* Base light/dark background + text */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* Tailwind v4 inline theme: define tokens used by your classes */
+@theme inline {
+  /* Default background/text */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* Your custom colors (used by bg-primary, from-primary, etc.) */
+  --color-primary: #6366f1;
+  --color-secondary: #8b5cf6;
+  --color-light: #f8fafc;
+  --color-lighter: #ffffff;
+
+  /* Fonts */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+/* Global body styles */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Utility for bg-grid-pattern used in the hero */
+@layer utilities {
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(
+        to right,
+        rgba(15, 23, 42, 0.06) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        rgba(15, 23, 42, 0.06) 1px,
+        transparent 1px
+      );
+    background-size: 24px 24px;
+  }
+}

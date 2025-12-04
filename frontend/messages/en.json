@@ -1,0 +1,24 @@
+{
+  "Nav": {
+    "logo": "Scall.io",
+    "home": "Home",
+    "trade": "Trade",
+    "earn": "Earn",
+    "dashboard": "Dashboard",
+    "howItWorks": "How it works",
+    "connectWallet": "Connect Wallet"
+  },
+  "Home": {
+    "title": "Perpetual Options on-chain",
+    "subtitle": "Open call or put positions and pay as you go.",
+    "cta": "Start trading"
+  },
+  "Footer": {
+    "rights": "All rights reserved.",
+    "links": {
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "docs": "Documentation"
+    }
+  }
+}

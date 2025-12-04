@@ -1,0 +1,24 @@
+{
+  "Nav": {
+    "logo": "Scall.io",
+    "home": "Accueil",
+    "trade": "Trader",
+    "earn": "Gagner",
+    "dashboard": "Tableau de bord",
+    "howItWorks": "Comment ça marche",
+    "connectWallet": "Connecter le wallet"
+  },
+  "Home": {
+    "title": "Options perpétuelles on-chain",
+    "subtitle": "Ouvrez des calls ou puts et payez au fil du temps.",
+    "cta": "Commencer à trader"
+  },
+  "Footer": {
+    "rights": "Tous droits réservés.",
+    "links": {
+      "terms": "Conditions",
+      "privacy": "Confidentialité",
+      "docs": "Documentation"
+    }
+  }
+}

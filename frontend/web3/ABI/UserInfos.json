@@ -1,0 +1,469 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_main",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "GetUserContractsForMarket",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "ID",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isCall",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "strike",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "rent",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "start",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "spent",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isITM",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "earnings",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct UserInfos.UserContract[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_strike",
+				"type": "uint256"
+			}
+		],
+		"name": "GetUserLpAmountsForStrikeForMarket",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "GetUserLpInfosListForMarket",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "bool",
+						"name": "isCall",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "strike",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "start",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "lastClaim",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct IMarketPool.LpInfos[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "GetUserLpStrikesForMarket",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "GetUserLps",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "index",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "ID",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isCall",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "strike",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "start",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "lastClaim",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isITM",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "value",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "withdrawableTokenA",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "withdrawableTokenB",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct UserInfos.UserLp[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_id",
+				"type": "uint256"
+			}
+		],
+		"name": "GetWithdrawableForLPForMaket",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_lp",
+				"type": "address"
+			}
+		],
+		"name": "getEstimatedYearlyEarningsForLP",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
+			}
+		],
+		"name": "getMarketAssetPrice",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_lp",
+				"type": "address"
+			}
+		],
+		"name": "getTotalOpenInterestForLP",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_lp",
+				"type": "address"
+			}
+		],
+		"name": "getTotalRewardsForLP",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "getUserLpInfosForMarket",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "callProvided",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "callUsed",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "callUsedITM",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "callAvailable",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "callReturned",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "putProvided",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "putUsed",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "putUsedITM",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "putAvailable",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "putReturned",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct UserInfos.UserLpInfos",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_x",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "_array",
+				"type": "uint256[]"
+			}
+		],
+		"name": "isPartOf",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	}
+]

@@ -27,9 +27,9 @@ export const ADDRESSES = {
   Main: "0x849d341edE8B40FfEA7E79C94e54b4c321118Ac9" as `0x${string}`,
   MarketcbBTC: "0x4c09fC5a31bbc41Bea5870d1B6D9c0aFA4f48967" as `0x${string}`,
   CollateralPool: "0xbBea3B2D6080c22f7B81f477a768D158e4671192" as `0x${string}`,
-  ProtocolInfos: "0xF29D43516637ca5f63fEd142e89A2457b9229d8c" as `0x${string}`,
+  ProtocolInfos: "0x308ae7Cb34e6c51c5b3390D18e75134F6aD3D251" as `0x${string}`,
   UserInfos: "0x8Baf61D6268c3870d8C45c4cc429E62abd49dbb6" as `0x${string}`,
-  UserHelper: "0x918D5D9E72801262b312eE1Ed32E2D18151E27A6" as `0x${string}`,
+  UserHelper: "0x119570b354ECC09511e6676C5E330eaAf194aFFa" as `0x${string}`,
   USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as `0x${string}`,
   cbBTC: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf" as `0x${string}`,
 };

@@ -14,29 +14,31 @@ export function generateStaticParams() {
   return locales.map((locale) => ({locale}));
 }
 
-export default async function LocaleLayout(props: {
-  children: ReactNode;
-  params: Promise<{locale: Locale}>;
-}) {
-  const {children} = props;
-  const {locale} = await props.params;
+function isLocale(l: string): l is Locale {
+  return (locales as readonly string[]).includes(l);
+}
 
-  if (!locales.includes(locale)) {
-    notFound();
-  }
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
+  if (!isLocale(locale)) notFound();
 
   const messages = await getMessages();
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <Header />
-
-      {/* FULL-WIDTH MAIN: removed max-w-5xl, mx-auto, px-4 */}
       <main className="flex-1 w-full" suppressHydrationWarning>
         {children}
       </main>
-
       <Footer />
     </NextIntlClientProvider>
   );
 }
+

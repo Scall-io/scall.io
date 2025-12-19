@@ -45,6 +45,11 @@ export default function Footer() {
                   Dashboard
                 </a>
               </li>
+              <li>
+                <a href={`/${locale}/liquidate`} className="hover:text-white transition">
+                  Liquidate
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -53,7 +58,7 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">Resources</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
-                <a href="#" className="hover:text-white transition">
+                <a href="https://scall-io.gitbook.io/scall.io/" target="_blank" className="hover:text-white transition">
                   Documentation
                 </a>
               </li>

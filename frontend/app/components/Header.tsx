@@ -12,7 +12,8 @@ const navLinks = [
   { href: "/trade", label: "Trade" },
   { href: "/earn", label: "Earn" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/how-it-works", label: "How It Works" },
+  //{ href: "/how-it-works", label: "How It Works" },
+  { href: "/token", label: "Token" },
 ];
 
 export default function Header() {

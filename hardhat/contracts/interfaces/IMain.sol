@@ -7,6 +7,7 @@ interface IMain {
         address tokenA;
         address tokenB;
         address priceFeed;
+        uint256 intervalLength;
         uint256 range;
         uint256 yield;     
     }

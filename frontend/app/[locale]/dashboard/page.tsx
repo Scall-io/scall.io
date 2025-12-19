@@ -15,6 +15,8 @@ import {
 } from "@/web3/functions";
 import { ADDRESSES, publicClient, Contracts } from "@/web3/contracts";
 import Toast from "@/app//components/Toast";
+import InlineLoader from "@/app/components/InlineLoader";
+import { Skeleton } from "@/app/components/Skeleton";
 import TransactionModal, { TxStep } from "@/app/components/TransactionModal";
 import UserHelperABI from "@/web3/ABI/UserHelper.json";
 import MarketPoolABI from "@/web3/ABI/MarketPool.json";
@@ -778,39 +780,38 @@ export default function DashboardPage() {
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Total Collateral</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {loading
-                    ? "Loading..."
-                    : collateralInfo
-                    ? `${collateralInfo.collateral.toLocaleString(
-                        undefined,
-                        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-                      )} USDC`
-                    : "-"}
-                </p>
+                <div className="text-xl font-bold text-gray-900">
+                  {loading ? (
+                    <Skeleton className="h-7 w-32" />
+                  ) : collateralInfo ? (
+                    `${collateralInfo.collateral.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`
+                  ) : (
+                    "-"
+                  )}
+                </div>
               </div>
               <div className="bg-orange-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Weekly Rent</p>
-                <p className="text-xl font-bold text-orange-600">
+                <div className="text-xl font-bold text-orange-600">
                   {loading
-                    ? "Loading..."
+                    ? <Skeleton className="h-7 w-32" />
                     : collateralInfo
                     ? `${totalWeeklyRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`
                     : "-"}
-                </p>
+                </div>
               </div>
               <div className="bg-green-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Withdrawable</p>
-                <p className="text-xl font-bold text-green-600">
+                <div className="text-xl font-bold text-green-600">
                   {loading
-                    ? "Loading..."
+                    ? <Skeleton className="h-7 w-32" />
                     : collateralInfo
                     ? `${collateralInfo.withdrawable.toLocaleString(
                         undefined,
                         { minimumFractionDigits: 2, maximumFractionDigits: 2 }
                       )} USDC`
                     : "-"}
-                </p>
+                </div>
               </div>
             </div>
 
@@ -859,17 +860,20 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-sm text-gray-500">
                       {mode === "deposit" ? "Available: " : "Available Collateral: "}
-                      {mode === "deposit"
-                        ? usdcBalance !== null
-                          ? `${usdcBalance.toLocaleString(undefined, {
-                              maximumFractionDigits: 2,
-                            })} USDC`
+                      {loading ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
+                          <span>Loading…</span>
+                        </span>
+                      ) : mode === "deposit" ? (
+                        usdcBalance !== null
+                          ? `${usdcBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC`
                           : "-"
-                        : collateralInfo
-                        ? `${collateralInfo.withdrawable.toLocaleString(undefined, {
-                            minimumFractionDigits: 2, maximumFractionDigits: 2,
-                          })} USDC`
-                        : "-"}
+                      ) : collateralInfo ? (
+                        `${collateralInfo.withdrawable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`
+                      ) : (
+                        "-"
+                      )}
                     </span>
 
                     <button
@@ -931,39 +935,39 @@ export default function DashboardPage() {
                 <p className="text-xs text-gray-500 mb-1">
                   Total Open Interest
                 </p>
-                <p className="text-xl font-bold text-gray-900">
+                <div className="text-xl font-bold text-gray-900">
                   {loading
-                    ? "Loading..."
+                    ? <Skeleton className="h-7 w-28" />
                     : lpStats
                     ? `$${lpStats.totalOpenInterest.toLocaleString(
                         undefined,
                         { minimumFractionDigits: 2, maximumFractionDigits: 2 }
                       )}`
                     : "-"}
-                </p>
+                </div>
               </div>
               <div className="bg-green-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Current APR</p>
-                <p className="text-xl font-bold text-green-600">
+                <div className="text-xl font-bold text-green-600">
                   {loading
-                    ? "Loading..."
+                    ? <Skeleton className="h-7 w-28" />
                     : lpStats
                     ? `${lpStats.apr.toFixed(2)}%`
                     : "-"}
-                </p>
+                </div>
               </div>
               <div className="bg-purple-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Total Rewards</p>
-                <p className="text-xl font-bold text-purple-600">
+                <div className="text-xl font-bold text-purple-600">
                   {loading
-                    ? "Loading..."
+                    ? <Skeleton className="h-7 w-28" />
                     : lpStats
                     ? `$${lpStats.totalRewards.toLocaleString(
                         undefined,
                         { minimumFractionDigits: 2, maximumFractionDigits: 2 }
                       )}`
                     : "-"}
-                </p>
+                </div>
               </div>
             </div>
 
@@ -974,7 +978,7 @@ export default function DashboardPage() {
                 </span>
                 <span className="text-2xl font-bold text-green-600">
                   {loading
-                    ? "Loading..."
+                    ? <Skeleton className="h-8 w-36" />
                     : lpStats
                     ? `$${lpStats.totalRewards.toLocaleString(
                         undefined,
@@ -1244,6 +1248,12 @@ export default function DashboardPage() {
                   const totalWithdrawableUSD = 
                     lp.withdrawableTokenA * (assetPrices[lp.index] || 0) + lp.withdrawableTokenB;
 
+                  const assetPrice = assetPrices[lp.index];
+                  const contractValueUSD = lp.isCall
+                    ? assetPrice !== undefined
+                      ? lp.value * assetPrice
+                      : null
+                    : lp.value;
 
                   return (
                     <div
@@ -1320,9 +1330,12 @@ export default function DashboardPage() {
                             Contract Value
                           </p>
                           <p className="text-sm font-bold text-gray-900">
-                            ${
-                              lp.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 
-                            })}
+                            {contractValueUSD !== null
+                              ? `$${contractValueUSD.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}`
+                              : "Loading..."}
                           </p>
                         </div>
 

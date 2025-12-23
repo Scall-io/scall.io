@@ -345,50 +345,48 @@ export default function TradePage() {
 
   // ---------- Load Markets from Main ----------
   useEffect(() => {
+    let cancelled = false;
+
     const loadMarkets = async () => {
       try {
         setIsLoadingMarkets(true);
 
-        const countBN = (await publicClient.readContract({
-          address: ADDRESSES.Main,
-          abi: Contracts.Main.abi,
-          functionName: "getMarketCount",
-        })) as bigint;
+        // Returns: struct IMain.marketInfos[]
+        // (addr, tokenA, tokenB, priceFeed, intervalLength, range, yield)
+        const infos = (await publicClient.readContract({
+          address: ADDRESSES.ProtocolInfos,
+          abi: Contracts.ProtocolInfos.abi,
+          functionName: "getAllMarketsInfos",
+        })) as any[];
 
-        const count = Number(countBN);
-        const infos = await Promise.all(
-          Array.from({ length: count }, (_, i) =>
-            publicClient.readContract({
-              address: ADDRESSES.Main,
-              abi: Contracts.Main.abi,
-              functionName: "getIdToMarketInfos",
-              args: [BigInt(i)],
-            }) as Promise<any>
-          )
-        );
+        if (cancelled) return;
 
-        setMarkets(
-          infos.map((info, i) => ({
-            index: i,
-            addr: info.addr,
-            tokenA: info.tokenA,
-            tokenB: info.tokenB,
-            yield: info.yield,
-          }))
-        );
+        const nextMarkets: MarketInfo[] = (infos || []).map((info, i) => ({
+          index: i,
+          addr: info.addr as `0x${string}`,
+          tokenA: info.tokenA as `0x${string}`,
+          tokenB: info.tokenB as `0x${string}`,
+          // info.yield is a uint256 with 18 decimals (same as before)
+          yield: info.yield as bigint,
+        }));
 
-        if (infos.length > 0) {
-          setSelectedMarketIndex(infos[0].index);
-          setSelectedAssetToken(infos[0].tokenA);
+        setMarkets(nextMarkets);
+
+        if (nextMarkets.length > 0) {
+          setSelectedMarketIndex(nextMarkets[0].index);
+          setSelectedAssetToken(nextMarkets[0].tokenA);
         }
       } catch (e) {
         console.error("Error loading markets:", e);
       } finally {
-        setIsLoadingMarkets(false);
+        if (!cancelled) setIsLoadingMarkets(false);
       }
     };
 
     loadMarkets();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Keep selectedMarket consistent with selectedAssetToken
@@ -614,7 +612,7 @@ export default function TradePage() {
       .filter(Boolean) as StrikeOption[];
   }, [intervals, optionType, strikeAvailabilities]);
 
-    useEffect(() => {
+  useEffect(() => {
     if (!strikeOptions.length) {
       setStrikePosition(0);
       return;
@@ -630,7 +628,7 @@ export default function TradePage() {
     if (strikeOptions.length > 0) {
       setStrikePosition(0); // nearest strike WITH liquidity
     }
-  }, [optionType, strikeOptions]);
+  }, [optionType]);
 
   const currentStrikeOption =
     strikeOptions.length > 0

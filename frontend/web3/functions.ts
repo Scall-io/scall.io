@@ -1,6 +1,6 @@
 "use client";
 
-import { formatUnits, Address } from "viem";
+import { formatUnits } from "viem";
 import { publicClient, Contracts, ADDRESSES } from "./contracts";
 
 // ========== PRICE ==========
@@ -209,11 +209,7 @@ export type CollateralInfo = {
   withdrawable: number;
 };
 
-export type CollateralUserInfo = {
-  collateral: bigint;
-  rent: bigint;
-  lastUpdate: bigint;
-};
+
 
 export const getCollateralInfo = async (
     address: `0x${string}`
@@ -328,49 +324,25 @@ export type TradePosition = {
 export const getTradePositions = async (
   address: `0x${string}`
 ): Promise<TradePosition[]> => {
-  const positions: TradePosition[] = [];
-
-  const mapList = (list: any[], index: number): TradePosition[] =>
-    list.map((c) => ({
-      index,
-      id: Number(c.ID),
-      isCall: c.isCall as boolean,
-      strike: parseFloat(formatUnits(c.strike, 18)),
-      amount: parseFloat(formatUnits(c.amount, 18)),
-      rent: parseFloat(formatUnits(c.rent, 18)),
-      start: Number(c.start),
-      spent: parseFloat(formatUnits(c.spent, 18)),
-      isITM: c.isITM as boolean,
-      earnings: parseFloat(formatUnits(c.earnings, 18)),
-    }));
-
-  // 1) Get how many markets exist in Main
-  let marketCount = 0;
   try {
-    const raw = (await Contracts.Main.read.getMarketCount([])) as bigint;
-    marketCount = Number(raw);
+    const trades = (await Contracts.UserInfos.read.getUserContracts([
+      address,
+    ])) as any[];
+
+    return trades.map((trade) => ({
+      index: Number(trade.index),
+      id: Number(trade.ID),
+      isCall: trade.isCall as boolean,
+      strike: parseFloat(formatUnits(trade.strike, 18)),
+      amount: parseFloat(formatUnits(trade.amount, 18)),
+      rent: parseFloat(formatUnits(trade.rent, 18)),
+      start: Number(trade.start),
+      spent: parseFloat(formatUnits(trade.spent, 18)),
+      isITM: trade.isITM as boolean,
+      earnings: parseFloat(formatUnits(trade.earnings, 18)),
+    }));
   } catch (e) {
-    console.warn("getMarketCount reverted, defaulting to 0:", e);
-    return positions;
+    console.error("getTrades error:", e);
+    return [];
   }
-
-  // 2) Loop over ALL markets [0 .. marketCount-1]
-  for (let i = 0; i < marketCount; i++) {
-    try {
-      const list = (await Contracts.UserInfos.read.GetUserContractsForMarket([
-        i,
-        address,
-      ])) as any[];
-
-      positions.push(...mapList(list, i));
-    } catch (e) {
-      console.warn(
-        `GetUserContractsForMarket reverted for index ${i}:`,
-        e
-      );
-      // ignore and continue with next market
-    }
-  }
-
-  return positions;
 };

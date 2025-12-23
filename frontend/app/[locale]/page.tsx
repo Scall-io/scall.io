@@ -78,6 +78,7 @@ export default function HomePage() {
   // Intervals & Strikes
   const [intervals, setIntervals] = useState<number[]>([]);
   const [strikePosition, setStrikePosition] = useState<number>(0);
+  const [strikeAvailabilities, setStrikeAvailabilities] = useState<number[]>([]);
 
   // Inputs
   const [amount, setAmount] = useState<string>("0.0");
@@ -145,11 +146,16 @@ export default function HomePage() {
   }, [selectedAssetToken]);
 
   const aprOptions = useMemo(() => {
-    if (!selectedAssetToken) return [];
-    return markets
-      .filter((m) => m.tokenA.toLowerCase() === selectedAssetToken.toLowerCase())
-      .slice(0, 3);
-  }, [markets, selectedAssetToken]);
+      if (!selectedAssetToken) return [];
+      return markets
+        .filter(
+          (m) => m.tokenA.toLowerCase() === selectedAssetToken.toLowerCase()
+        )
+        .sort((a, b) => {
+          if (a.yield === b.yield) return a.index - b.index;
+          return a.yield < b.yield ? -1 : 1;
+        });
+    }, [markets, selectedAssetToken]);
 
   const totalAvailableLiquidity = useMemo(() => {
     if (!aprOptions.length) return null;
@@ -196,27 +202,27 @@ export default function HomePage() {
   }, [aprOptions, aprAvailabilities, amount]);
 
   const strikeOptions: StrikeOption[] = useMemo(() => {
-  if (!intervals.length) return [];
-  const half = Math.floor(intervals.length / 2);
+    if (!intervals.length) return [];
+    const half = Math.floor(intervals.length / 2);
 
-  // Only show strike prices that have liquidity available (summed across APR tiers)
-  const hasLiquidity = (strikeIndex: number) => {
-    const v = strikeLiquidityByIndex[strikeIndex] ?? 0;
-    return Number.isFinite(v) && v > 0;
-  };
+    // Only show strike prices that have liquidity available (summed across APR tiers)
+    const hasLiquidity = (strikeIndex: number) => {
+      const v = strikeAvailabilities[strikeIndex] ?? 0;
+      return Number.isFinite(v) && v > 0;
+    };
 
-  if (optionType === "CALL") {
+    if (optionType === "CALL") {
+      return intervals
+        .slice(half)
+        .map((price, idx) => ({ strikeIndex: half + idx, price }))
+        .filter((s) => hasLiquidity(s.strikeIndex));
+    }
+
     return intervals
-      .slice(half)
-      .map((price, idx) => ({ strikeIndex: half + idx, price }))
+      .slice(0, half)
+      .map((price, idx) => ({ strikeIndex: idx, price }))
       .filter((s) => hasLiquidity(s.strikeIndex));
-  }
-
-  return intervals
-    .slice(0, half)
-    .map((price, idx) => ({ strikeIndex: idx, price }))
-    .filter((s) => hasLiquidity(s.strikeIndex));
-}, [intervals, optionType, strikeLiquidityByIndex]);
+  }, [intervals, optionType, strikeAvailabilities]);
 
   const currentStrikeOption =
     strikeOptions.length > 0
@@ -355,15 +361,17 @@ export default function HomePage() {
     }
   }, [selectedAssetToken, markets, selectedMarketIndex]);
 
-  // Load Intervals
+  // ---------- Load Intervals from selected MarketPool ----------
   useEffect(() => {
     if (!selectedMarket) {
       setIntervals([]);
       return;
     }
+
     const loadIntervals = async () => {
       try {
         setIsLoadingIntervals(true);
+
         const [lengthBN, intervalsBN] = await Promise.all([
           publicClient.readContract({
             address: selectedMarket.addr,
@@ -376,10 +384,16 @@ export default function HomePage() {
             functionName: "getIntervals",
           }) as Promise<bigint[]>,
         ]);
+
         const length = Number(lengthBN);
-        const arr = intervalsBN.slice(0, length).map((v) => parseFloat(formatUnits(v, 18)));
+        const arr = intervalsBN.slice(0, length).map((v) => {
+          return parseFloat(formatUnits(v, 18));
+        });
+
         setIntervals(arr);
-        setStrikePosition(0);
+        setStrikePosition((prev) =>
+          arr.length === 0 ? 0 : Math.min(prev, arr.length - 1)
+        );
       } catch (e) {
         console.error("Error loading intervals:", e);
         setIntervals([]);
@@ -387,58 +401,37 @@ export default function HomePage() {
         setIsLoadingIntervals(false);
       }
     };
+
     loadIntervals();
   }, [selectedMarket]);
 
-// Load aggregated strike liquidity across APR tiers (so Strike list only shows strikes with liquidity > 0)
-useEffect(() => {
-  const loadStrikeLiquidity = async () => {
-    if (!intervals.length || !aprOptions.length) {
-      setStrikeLiquidityByIndex([]);
+  // ---------- Load per-strike available liquidity from ProtocolInfos ----------
+  useEffect(() => {
+    if (!selectedMarket) {
+      setStrikeAvailabilities([]);
       return;
     }
-    try {
-      setIsLoadingStrikeLiquidity(true);
 
-      // Sum liquidity across the APR markets for the selected asset
-      const arrays = await Promise.all(
-        aprOptions.map(async (m) => {
-          try {
-            const arr = (await publicClient.readContract({
-              address: ADDRESSES.ProtocolInfos,
-              abi: Contracts.ProtocolInfos.abi,
-              functionName: "getMarketsAvlLiquidity",
-              args: [BigInt(m.index)],
-            })) as bigint[];
+    const loadStrikeAvailabilities = async () => {
+      try {
+        const raw = (await publicClient.readContract({
+          address: ADDRESSES.ProtocolInfos,
+          abi: Contracts.ProtocolInfos.abi,
+          functionName: "getMarketsAvlLiquidity",
+          args: [BigInt(selectedMarket.index)],
+        })) as bigint[];
 
-            return arr.map((v) => Number(formatUnits(v, 18)));
-          } catch (e) {
-            // If one tier fails, ignore it rather than breaking the widget
-            return new Array(intervals.length).fill(0);
-          }
-        })
-      );
-
-      const summed = new Array(intervals.length).fill(0);
-      for (const arr of arrays) {
-        for (let i = 0; i < summed.length; i++) {
-          const v = arr[i] ?? 0;
-          if (Number.isFinite(v) && v > 0) summed[i] += v;
-        }
+        // Interpreted as tokenA units with 18 decimals (e.g. BTC)
+        const parsed = raw.map((v) => parseFloat(formatUnits(v, 18)));
+        setStrikeAvailabilities(parsed);
+      } catch (e) {
+        console.error("Error loading strike availabilities:", e);
+        setStrikeAvailabilities([]);
       }
+    };
 
-      setStrikeLiquidityByIndex(summed);
-    } catch (e) {
-      console.error("Error loading strike liquidity:", e);
-      setStrikeLiquidityByIndex([]);
-    } finally {
-      setIsLoadingStrikeLiquidity(false);
-    }
-  };
-
-  loadStrikeLiquidity();
-}, [intervals.length, aprOptions]);
-
+    loadStrikeAvailabilities();
+  }, [selectedMarket]);
 
   // Reset Strike when type/intervals change
   useEffect(() => {
@@ -488,16 +481,22 @@ useEffect(() => {
     loadAvailable();
   }, [selectedMarket, currentStrikeOption, optionType]);
 
-  // Load Liquidity for ALL APR Markets
+  // ---------- Load available liquidity for each APR market (same asset, current strike) ----------
   useEffect(() => {
     const loadAprAvailabilities = async () => {
       if (!currentStrikeOption || !aprOptions.length) {
         setAprAvailabilities({});
         return;
       }
+
       try {
-        const strikeWei = parseUnits(currentStrikeOption.price.toString(), 18);
+        const strikeWei = parseUnits(
+          currentStrikeOption.price.toString(),
+          18
+        );
+
         const results: Record<number, number | null> = {};
+
         for (const m of aprOptions) {
           try {
             const info = (await publicClient.readContract({
@@ -506,7 +505,7 @@ useEffect(() => {
               functionName: "getStrikeInfos",
               args: [strikeWei],
             })) as any;
-            
+
             const callLP = parseFloat(formatUnits(info.callLP as bigint, 18));
             const callLU = parseFloat(formatUnits(info.callLU as bigint, 18));
             const callLR = parseFloat(formatUnits(info.callLR as bigint, 18));
@@ -516,22 +515,30 @@ useEffect(() => {
             const strike = currentStrikeOption.price;
 
             let available = 0;
+
             if (optionType === "CALL") {
+              // Available in asset units (BTC/ETH)
               available = callLP - callLU - callLR / strike;
             } else {
+              // Available in asset units via PUT side
               available = (putLP - putLU - putLR * strike) / strike;
             }
+
             if (!Number.isFinite(available) || available < 0) available = 0;
             results[m.index] = available;
           } catch (err) {
+            console.error("Error loading APR market liquidity", m.index, err);
             results[m.index] = null;
           }
         }
+
         setAprAvailabilities(results);
       } catch (err) {
+        console.error("Error preparing APR availabilities:", err);
         setAprAvailabilities({});
       }
     };
+
     loadAprAvailabilities();
   }, [aprOptions, currentStrikeOption, optionType]);
 
@@ -759,12 +766,12 @@ useEffect(() => {
               </div>
               <div className="flex items-center space-x-8 pt-6">
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">$156M</p>
+                  <p className="text-3xl font-bold text-gray-900">$3.5M</p>
                   <p className="text-sm text-gray-600">Total Volume</p>
                 </div>
                 <div className="w-px h-12 bg-gray-300" />
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">$89M</p>
+                  <p className="text-3xl font-bold text-gray-900">$1.2M</p>
                   <p className="text-sm text-gray-600">Liquidity</p>
                 </div>
                 <div className="w-px h-12 bg-gray-300" />
@@ -1097,15 +1104,14 @@ useEffect(() => {
                   onChange={(pos: number) => setStrikePosition(pos)}
                   options={strikeOptions.map(
                     (opt, idx): SelectMenuOption<number> => {
-                      const liq =
-                        strikeLiquidityByIndex[opt.strikeIndex] ?? 0;
+                      const liq = strikeAvailabilities[opt.strikeIndex] ?? 0;
                       return {
                         value: idx,
                         label: `$${opt.price.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}`,
-                        rightLabel: `${liq.toFixed(2)} ${selectedAssetSymbol}`,
+                        rightLabel: `${liq.toFixed(4)} ${selectedAssetSymbol}`,
                       };
                     }
                   )}
@@ -1133,99 +1139,99 @@ useEffect(() => {
               )}
 
               {selectedMarket && aprOptions.length > 0 && (() => {
-  const filtered = aprOptions.filter((m) => {
-    const v = aprAvailabilities[m.index];
-    return typeof v === "number" && Number.isFinite(v) && v > 0;
-  });
+                const filtered = aprOptions.filter((m) => {
+                  const v = aprAvailabilities[m.index];
+                  return typeof v === "number" && Number.isFinite(v) && v > 0;
+                });
 
-  if (!filtered.length) {
-    return (
-      <div className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-4 text-sm text-gray-500">
-        No liquidity available for this strike on any APR tier.
-      </div>
-    );
-  }
+                if (!filtered.length) {
+                  return (
+                    <div className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                      No liquidity available for this strike on any APR tier.
+                    </div>
+                  );
+                }
 
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {filtered.map((m, idx) => {
-        const aprDecMarket = Number(formatUnits(m.yield, 18));
-        const aprPctMarket = aprDecMarket * 100;
+                return (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {filtered.map((m, idx) => {
+                      const aprDecMarket = Number(formatUnits(m.yield, 18));
+                      const aprPctMarket = aprDecMarket * 100;
 
-        const gradientStyles = [
-          {
-            card: "from-emerald-50 to-emerald-100 border-emerald-300",
-            activeBorder: "border-emerald-500",
-            textMain: "text-emerald-800",
-            textSub: "text-emerald-600",
-            boxBg: "bg-white/60",
-            boxText: "text-emerald-900",
-            boxSub: "text-emerald-600",
-          },
-          {
-            card: "from-blue-50 to-blue-100 border-blue-300",
-            activeBorder: "border-blue-500",
-            textMain: "text-blue-800",
-            textSub: "text-blue-600",
-            boxBg: "bg-white/60",
-            boxText: "text-blue-900",
-            boxSub: "text-blue-600",
-          },
-          {
-            card: "from-purple-50 to-purple-100 border-purple-300",
-            activeBorder: "border-purple-500",
-            textMain: "text-purple-800",
-            textSub: "text-purple-600",
-            boxBg: "bg-white/80",
-            boxText: "text-purple-900",
-            boxSub: "text-purple-600",
-          },
-        ];
-        const style = gradientStyles[idx % gradientStyles.length];
-        const available = aprAvailabilities[m.index] ?? null;
-        const assetSymbol =
-          m.tokenA.toLowerCase() === ADDRESSES.cbBTC.toLowerCase()
-            ? "BTC"
-            : "ETH";
-        const used =
-          allocationPlan.items.find((it) => it.market.index === m.index)
-            ?.amount ?? 0;
-        const isUsed = used > 1e-9;
+                      const gradientStyles = [
+                        {
+                          card: "from-emerald-50 to-emerald-100 border-emerald-300",
+                          activeBorder: "border-emerald-500",
+                          textMain: "text-emerald-800",
+                          textSub: "text-emerald-600",
+                          boxBg: "bg-white/60",
+                          boxText: "text-emerald-900",
+                          boxSub: "text-emerald-600",
+                        },
+                        {
+                          card: "from-blue-50 to-blue-100 border-blue-300",
+                          activeBorder: "border-blue-500",
+                          textMain: "text-blue-800",
+                          textSub: "text-blue-600",
+                          boxBg: "bg-white/60",
+                          boxText: "text-blue-900",
+                          boxSub: "text-blue-600",
+                        },
+                        {
+                          card: "from-purple-50 to-purple-100 border-purple-300",
+                          activeBorder: "border-purple-500",
+                          textMain: "text-purple-800",
+                          textSub: "text-purple-600",
+                          boxBg: "bg-white/80",
+                          boxText: "text-purple-900",
+                          boxSub: "text-purple-600",
+                        },
+                      ];
+                      const style = gradientStyles[idx % gradientStyles.length];
+                      const available = aprAvailabilities[m.index] ?? null;
+                      const assetSymbol =
+                        m.tokenA.toLowerCase() === ADDRESSES.cbBTC.toLowerCase()
+                          ? "BTC"
+                          : "ETH";
+                      const used =
+                        allocationPlan.items.find((it) => it.market.index === m.index)
+                          ?.amount ?? 0;
+                      const isUsed = used > 1e-9;
 
-        return (
-          <div
-            key={m.index}
-            className={[
-              "apr-option w-full rounded-xl border-2 bg-gradient-to-br p-4 transition",
-              style.card,
-              isUsed ? `${style.activeBorder} shadow-md` : "hover:shadow-lg",
-            ].join(" ")}
-          >
-            <div className="text-center">
-              <div className="mb-2">
-                <span
-                  className={`block text-xl font-bold ${style.textMain}`}
-                >
-                  {aprPctMarket.toFixed(2)}%
-                </span>
-              </div>
-              <div className={`${style.boxBg} rounded-lg p-2`}>
-                <p className={`text-sm font-bold ${style.boxText}`}>
-                  {available === null
-                    ? "..."
-                    : `${available.toFixed(4)} ${assetSymbol}`}
-                </p>
-                <p className={`text-[10px] font-medium ${style.boxSub}`}>
-                  Available
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-})()}
+                      return (
+                        <div
+                          key={m.index}
+                          className={[
+                            "apr-option w-full rounded-xl border-2 bg-gradient-to-br p-4 transition",
+                            style.card,
+                            isUsed ? `${style.activeBorder} shadow-md` : "hover:shadow-lg",
+                          ].join(" ")}
+                        >
+                          <div className="text-center">
+                            <div className="mb-2">
+                              <span
+                                className={`block text-xl font-bold ${style.textMain}`}
+                              >
+                                {aprPctMarket.toFixed(2)}%
+                              </span>
+                            </div>
+                            <div className={`${style.boxBg} rounded-lg p-2`}>
+                              <p className={`text-sm font-bold ${style.boxText}`}>
+                                {available === null
+                                  ? "..."
+                                  : `${available.toFixed(4)} ${assetSymbol}`}
+                              </p>
+                              <p className={`text-[10px] font-medium ${style.boxSub}`}>
+                                Available
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Amount selector */}

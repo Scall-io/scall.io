@@ -15,12 +15,8 @@ import {
 } from "@/web3/functions";
 import { ADDRESSES, publicClient, Contracts } from "@/web3/contracts";
 import Toast from "@/app//components/Toast";
-import InlineLoader from "@/app/components/InlineLoader";
 import { Skeleton } from "@/app/components/Skeleton";
 import TransactionModal, { TxStep } from "@/app/components/TransactionModal";
-import UserHelperABI from "@/web3/ABI/UserHelper.json";
-import MarketPoolABI from "@/web3/ABI/MarketPool.json";
-import CollateralPoolABI from "@/web3/ABI/CollateralPool.json";
 
 // Define MarketInfo type to avoid duplication
 type MarketInfo = {
@@ -176,7 +172,7 @@ export default function DashboardPage() {
           // Cast result to any to avoid complex TS typing for MarketPoolABI return
           const strikeInfos = (await publicClient.readContract({
             address: market.addr,
-            abi: MarketPoolABI,
+            abi: Contracts.MarketPool.abi,
             functionName: "getStrikeInfos",
             args: [strikeRaw],
           })) as any; 
@@ -428,7 +424,7 @@ export default function DashboardPage() {
         // 1. Get collateral token address (API Call 1)
         const collateralToken = (await publicClient.readContract({
           address: ADDRESSES.CollateralPool,
-          abi: CollateralPoolABI,
+          abi: Contracts.CollateralPool.abi,
           functionName: "getCollateralToken",
           args: [],
         })) as `0x${string}`;
@@ -453,7 +449,7 @@ export default function DashboardPage() {
 
         hash = await writeCollateralAsync({
           address: ADDRESSES.CollateralPool,
-          abi: CollateralPoolABI,
+          abi: Contracts.CollateralPool.abi,
           functionName: "depositCollateral",
           args: [amount],
         });
@@ -467,7 +463,7 @@ export default function DashboardPage() {
 
         hash = await writeCollateralAsync({
           address: ADDRESSES.CollateralPool,
-          abi: CollateralPoolABI,
+          abi: Contracts.CollateralPool.abi,
           functionName: "withdrawCollateral",
           args: [amount],
         });
@@ -522,7 +518,7 @@ export default function DashboardPage() {
     try {
       const hash = await writeClaimAsync({
         address: ADDRESSES.UserHelper,
-        abi: UserHelperABI,
+        abi: Contracts.UserHelper.abi,
         functionName: "claimAllRewards",
         args: [],
       });
@@ -634,7 +630,7 @@ export default function DashboardPage() {
 
       const hash = await writeMarketAsync({
         address: market.addr,
-        abi: MarketPoolABI,
+        abi: Contracts.MarketPool.abi,
         functionName: "closeContract",
         args: [BigInt(p.id)],
       });
@@ -704,7 +700,7 @@ export default function DashboardPage() {
       // API Call 2: Write contract
       const hash = await writeMarketAsync({
         address: market.addr,
-        abi: MarketPoolABI,
+        abi: Contracts.MarketPool.abi,
         functionName: "withdraw",
         args: [BigInt(lp.id)],
       });

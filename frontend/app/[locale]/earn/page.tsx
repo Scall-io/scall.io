@@ -86,10 +86,7 @@ export default function EarnPage() {
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
   const [isLoadingIntervals, setIsLoadingIntervals] = useState(false);
   const [isLoadingBalances, setIsLoadingBalances] = useState(false);
-  const [isLoadingBtcPrice, setIsLoadingBtcPrice] = useState(false);
   const [isLoadingPoolStats, setIsLoadingPoolStats] = useState(false);
-  const [isLoadingAprAvailabilities, setIsLoadingAprAvailabilities] = useState(false);
-
 
   // On-chain writers
   const { writeContractAsync } = useWriteContract();
@@ -103,15 +100,241 @@ export default function EarnPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        setIsLoadingBtcPrice(true);
         const price = await getBtcPrice();
         if (price !== null) setBtcPrice(price);
       } finally {
-        setIsLoadingBtcPrice(false);
       }
     };
     load();
   }, []);
+
+  // ---------- Load Markets (single call via ProtocolInfos) ----------
+  useEffect(() => {
+    const loadMarkets = async () => {
+      try {
+        setIsLoadingMarkets(true);
+
+        const all = (await publicClient.readContract({
+          address: ADDRESSES.ProtocolInfos,
+          abi: ProtocolInfosABI,
+          functionName: "getAllMarketsInfos",
+        })) as any[]; // viem returns an array of structs (objects)
+
+        const infos: MarketInfo[] = (all ?? []).map((m, i) => ({
+          index: i,
+          addr: m.addr as `0x${string}`,
+          tokenA: m.tokenA as `0x${string}`,
+          tokenB: m.tokenB as `0x${string}`,
+          yield: m.yield as bigint, // 18 decimals
+        }));
+
+        setMarkets(infos);
+
+        // Initialize selection
+        if (infos.length > 0) {
+          setSelectedAsset(infos[0].tokenA);
+          setSelectedMarketIndex(infos[0].index);
+        }
+      } catch (e) {
+        console.error("Error loading markets:", e);
+        setMarkets([]);
+      } finally {
+        setIsLoadingMarkets(false);
+      }
+    };
+
+    loadMarkets();
+  }, []);
+
+
+  const selectedMarket = useMemo(
+    () => markets.find((m) => m.index === selectedMarketIndex) || null,
+    [markets, selectedMarketIndex]
+  );
+
+  // Unique asset list (from tokenA)
+  type AssetOption = {
+    tokenA: `0x${string}`;
+    label: string;
+  };
+
+  const getAssetLabel = (tokenA: `0x${string}`) => {
+    return tokenA.toLowerCase() === ADDRESSES.cbBTC.toLowerCase()
+      ? "Bitcoin (BTC)"
+      : "Ethereum (ETH)";
+  };
+
+  const assetOptions: AssetOption[] = useMemo(() => {
+    const seen = new Set<string>();
+    const options: AssetOption[] = [];
+
+    for (const m of markets) {
+      const key = m.tokenA.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        options.push({
+          tokenA: m.tokenA,
+          label: getAssetLabel(m.tokenA),
+        });
+      }
+    }
+
+    return options;
+  }, [markets]);
+
+  // All APR options for the selected asset (each APR = one market)
+  const aprOptions = useMemo(() => {
+    if (!selectedAsset) return [];
+
+    return markets
+      .filter(
+        (m) => m.tokenA.toLowerCase() === selectedAsset.toLowerCase()
+      )
+      .slice()
+      .sort((a, b) => (a.yield < b.yield ? -1 : a.yield > b.yield ? 1 : 0));
+  }, [markets, selectedAsset]);
+
+  // ---------- Load Intervals ----------
+  useEffect(() => {
+    if (!selectedMarket) {
+      setIntervals([]);
+      return;
+    }
+
+    const loadIntervals = async () => {
+      try {
+        setIsLoadingIntervals(true);
+
+        const [lengthBN, intervalsBN] = await Promise.all([
+          publicClient.readContract({
+            address: selectedMarket.addr,
+            abi: MarketPoolABI,
+            functionName: "getIntervalLength",
+          }) as Promise<bigint>,
+          publicClient.readContract({
+            address: selectedMarket.addr,
+            abi: MarketPoolABI,
+            functionName: "getIntervals",
+          }) as Promise<bigint[]>,
+        ]);
+
+        const length = Number(lengthBN);
+        const arr = intervalsBN.slice(0, length).map((v) => {
+          return parseFloat(formatUnits(v, 18));
+        });
+
+        setIntervals(arr);
+        // ⬅ no more automatic strike reset here
+      } catch (e) {
+        console.error("Error loading intervals:", e);
+        setIntervals([]);
+      } finally {
+        setIsLoadingIntervals(false);
+      }
+    };
+
+    loadIntervals();
+  }, [selectedMarket]);
+
+
+  useEffect(() => {
+    setStrikePosition(0);
+  }, [lpType]);
+
+  // ---------- Strike options ----------
+  const strikeOptions: StrikeOption[] = useMemo(() => {
+    if (!intervals.length) return [];
+
+    const half = Math.floor(intervals.length / 2);
+    if (lpType === "call") {
+      return intervals.slice(half).map((price, idx) => ({
+        strikeIndex: half + idx,
+        price,
+      }));
+    } else {
+      return intervals.slice(0, half).map((price, idx) => ({
+        strikeIndex: idx,
+        price,
+      }));
+    }
+  }, [intervals, lpType]);
+
+  const currentStrikeOption =
+    strikeOptions.length > 0
+      ? strikeOptions[Math.min(strikePosition, strikeOptions.length - 1)]
+      : null;
+
+  const assetSymbol =
+    selectedAsset &&
+    selectedAsset.toLowerCase() === ADDRESSES.cbBTC.toLowerCase()
+      ? "BTC"
+      : "ETH";
+
+  useEffect(() => {
+    setHasUserSelectedAprManually(false);
+  }, [selectedAsset, lpType]);
+
+
+  // ---------- Load available liquidity for each APR market (same asset, current strike) ----------
+  useEffect(() => {
+    const loadAprAvailabilities = async () => {
+      if (!currentStrikeOption || !aprOptions.length) {
+        setAprAvailabilities({});
+        return;
+      }
+
+      try {
+        const strikeWei = parseUnits(
+          currentStrikeOption.price.toString(),
+          18
+        );
+
+        const results: Record<number, number | null> = {};
+
+        for (const m of aprOptions) {
+          try {
+            const info = (await publicClient.readContract({
+              address: m.addr,
+              abi: MarketPoolABI,
+              functionName: "getStrikeInfos",
+              args: [strikeWei],
+            })) as any;
+
+            const callLP = parseFloat(formatUnits(info.callLP as bigint, 18));
+            const callLU = parseFloat(formatUnits(info.callLU as bigint, 18));
+            const callLR = parseFloat(formatUnits(info.callLR as bigint, 18));
+            const putLP = parseFloat(formatUnits(info.putLP as bigint, 18));
+            const putLU = parseFloat(formatUnits(info.putLU as bigint, 18));
+            const putLR = parseFloat(formatUnits(info.putLR as bigint, 18));
+            const strike = currentStrikeOption.price;
+
+            let available = 0;
+
+            if (lpType === "call") {
+              // Available in underlying asset units (BTC/ETH)
+              available = callLP - callLU - callLR / strike;
+            } else {
+              // PUT side: available in underlying asset units via USDC side
+              available = (putLP - putLU - putLR * strike) / strike;
+            }
+
+            if (!Number.isFinite(available) || available < 0) available = 0;
+            results[m.index] = available;
+          } catch (err) {
+            console.error("Error loading APR market liquidity", m.index, err);
+            results[m.index] = null;
+          }
+        }
+
+        setAprAvailabilities(results);
+      } catch (err) {
+        console.error("Error preparing APR availabilities:", err);
+        setAprAvailabilities({});
+      }
+    };
+
+    loadAprAvailabilities();
+  }, [aprOptions, currentStrikeOption, lpType]);
 
   // ---------- Load Balances (cbBTC and USDC) ----------
   useEffect(() => {
@@ -162,53 +385,6 @@ export default function EarnPage() {
     loadBalances();
   }, [address]);
 
-  // ---------- Load Markets from Main ----------
-  useEffect(() => {
-    const loadMarkets = async () => {
-      try {
-        setIsLoadingMarkets(true);
-
-        const countBN = (await publicClient.readContract({
-          address: ADDRESSES.Main,
-          abi: MainABI,
-          functionName: "getMarketCount",
-        })) as bigint;
-
-        const count = Number(countBN);
-        const infos: MarketInfo[] = [];
-
-        for (let i = 0; i < count; i++) {
-          const info = (await publicClient.readContract({
-            address: ADDRESSES.Main,
-            abi: MainABI,
-            functionName: "getIdToMarketInfos",
-            args: [BigInt(i)],
-          })) as any;
-
-          infos.push({
-            index: i,
-            addr: info.addr as `0x${string}`,
-            tokenA: info.tokenA as `0x${string}`,
-            tokenB: info.tokenB as `0x${string}`,
-            yield: info.yield as bigint,
-          });
-        }
-
-        setMarkets(infos);
-        if (infos.length > 0) {
-          setSelectedAsset(infos[0].tokenA as `0x${string}`);
-          setSelectedMarketIndex(infos[0].index);
-        }
-      } catch (e) {
-        console.error("Error loading markets:", e);
-      } finally {
-        setIsLoadingMarkets(false);
-      }
-    };
-
-    loadMarkets();
-  }, []);
-
   // ---------- Load Protocol Fees ----------
   useEffect(() => {
     const loadProtocolFees = async () => {
@@ -228,53 +404,6 @@ export default function EarnPage() {
 
     loadProtocolFees();
   }, []);
-
-  const selectedMarket = useMemo(
-    () => markets.find((m) => m.index === selectedMarketIndex) || null,
-    [markets, selectedMarketIndex]
-  );
-
-  // Unique asset list (from tokenA)
-  type AssetOption = {
-    tokenA: `0x${string}`;
-    label: string;
-  };
-
-  const getAssetLabel = (tokenA: `0x${string}`) => {
-    return tokenA.toLowerCase() === ADDRESSES.cbBTC.toLowerCase()
-      ? "Bitcoin (BTC)"
-      : "Ethereum (ETH)";
-  };
-
-  const assetOptions: AssetOption[] = useMemo(() => {
-    const seen = new Set<string>();
-    const options: AssetOption[] = [];
-
-    for (const m of markets) {
-      const key = m.tokenA.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        options.push({
-          tokenA: m.tokenA,
-          label: getAssetLabel(m.tokenA),
-        });
-      }
-    }
-
-    return options;
-  }, [markets]);
-
-  // All APR options for the selected asset (each APR = one market)
-  const aprOptions = useMemo(() => {
-    if (!selectedAsset) return [];
-
-    return markets
-      .filter(
-        (m) => m.tokenA.toLowerCase() === selectedAsset.toLowerCase()
-      )
-      .slice()
-      .sort((a, b) => (a.yield < b.yield ? -1 : a.yield > b.yield ? 1 : 0));
-  }, [markets, selectedAsset]);
 
   // ---------- Load Market Infos (Pool Stats) ----------
   const loadPoolStats = useCallback(async () => {
@@ -348,152 +477,6 @@ export default function EarnPage() {
   useEffect(() => {
     loadPoolStats();
   }, [selectedMarket, btcPrice, loadPoolStats]);
-
-  // ---------- Load Intervals ----------
-  useEffect(() => {
-    if (!selectedMarket) {
-      setIntervals([]);
-      return;
-    }
-
-    const loadIntervals = async () => {
-      try {
-        setIsLoadingIntervals(true);
-
-        const [lengthBN, intervalsBN] = await Promise.all([
-          publicClient.readContract({
-            address: selectedMarket.addr,
-            abi: MarketPoolABI,
-            functionName: "getIntervalLength",
-          }) as Promise<bigint>,
-          publicClient.readContract({
-            address: selectedMarket.addr,
-            abi: MarketPoolABI,
-            functionName: "getIntervals",
-          }) as Promise<bigint[]>,
-        ]);
-
-        const length = Number(lengthBN);
-        const arr = intervalsBN.slice(0, length).map((v) => {
-          return parseFloat(formatUnits(v, 18));
-        });
-
-        setIntervals(arr);
-        // ⬅ no more automatic strike reset here
-      } catch (e) {
-        console.error("Error loading intervals:", e);
-        setIntervals([]);
-      } finally {
-        setIsLoadingIntervals(false);
-      }
-    };
-
-    loadIntervals();
-  }, [selectedMarket]);
-
-
-  useEffect(() => {
-    setStrikePosition(0);
-  }, [lpType]);
-
-
-  // ---------- Strike options ----------
-  const strikeOptions: StrikeOption[] = useMemo(() => {
-    if (!intervals.length) return [];
-
-    const half = Math.floor(intervals.length / 2);
-    if (lpType === "call") {
-      return intervals.slice(half).map((price, idx) => ({
-        strikeIndex: half + idx,
-        price,
-      }));
-    } else {
-      return intervals.slice(0, half).map((price, idx) => ({
-        strikeIndex: idx,
-        price,
-      }));
-    }
-  }, [intervals, lpType]);
-
-  const currentStrikeOption =
-    strikeOptions.length > 0
-      ? strikeOptions[Math.min(strikePosition, strikeOptions.length - 1)]
-      : null;
-
-  const assetSymbol =
-    selectedAsset &&
-    selectedAsset.toLowerCase() === ADDRESSES.cbBTC.toLowerCase()
-      ? "BTC"
-      : "ETH";
-
-  useEffect(() => {
-    setHasUserSelectedAprManually(false);
-  }, [selectedAsset, lpType]);
-
-
-  // ---------- Load available liquidity for each APR market (same asset, current strike) ----------
-  useEffect(() => {
-    const loadAprAvailabilities = async () => {
-      if (!currentStrikeOption || !aprOptions.length) {
-        setAprAvailabilities({});
-        return;
-      }
-
-      try {
-        setIsLoadingAprAvailabilities(true);
-        const strikeWei = parseUnits(
-          currentStrikeOption.price.toString(),
-          18
-        );
-
-        const results: Record<number, number | null> = {};
-
-        for (const m of aprOptions) {
-          try {
-            const info = (await publicClient.readContract({
-              address: m.addr,
-              abi: MarketPoolABI,
-              functionName: "getStrikeInfos",
-              args: [strikeWei],
-            })) as any;
-
-            const callLP = parseFloat(formatUnits(info.callLP as bigint, 18));
-            const callLU = parseFloat(formatUnits(info.callLU as bigint, 18));
-            const callLR = parseFloat(formatUnits(info.callLR as bigint, 18));
-            const putLP = parseFloat(formatUnits(info.putLP as bigint, 18));
-            const putLU = parseFloat(formatUnits(info.putLU as bigint, 18));
-            const putLR = parseFloat(formatUnits(info.putLR as bigint, 18));
-            const strike = currentStrikeOption.price;
-
-            let available = 0;
-
-            if (lpType === "call") {
-              // Available in underlying asset units (BTC/ETH)
-              available = callLP - callLU - callLR / strike;
-            } else {
-              // PUT side: available in underlying asset units via USDC side
-              available = (putLP - putLU - putLR * strike) / strike;
-            }
-
-            if (!Number.isFinite(available) || available < 0) available = 0;
-            results[m.index] = available;
-          } catch (err) {
-            console.error("Error loading APR market liquidity", m.index, err);
-            results[m.index] = null;
-          }
-        }
-
-        setAprAvailabilities(results);
-      } catch (err) {
-        console.error("Error preparing APR availabilities:", err);
-        setAprAvailabilities({});
-      } finally {
-        setIsLoadingAprAvailabilities(false);
-      }
-    };
-
-    loadAprAvailabilities();
-  }, [aprOptions, currentStrikeOption, lpType]);
 
   // ---------- Auto-select & scroll to smallest APR that has liquidity ----------
   useEffect(() => {

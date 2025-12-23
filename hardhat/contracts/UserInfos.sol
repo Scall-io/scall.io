@@ -329,6 +329,7 @@ contract UserInfos {
     }
 
     struct UserContract {
+        uint256 index;
         uint256 ID;
         bool isCall;
         uint256 strike;
@@ -366,6 +367,7 @@ contract UserInfos {
             }
 
             userContractList[i] = UserContract({
+                index: _index,
                 ID: ID,
                 isCall: userContractInfos.isCall,
                 strike: userContractInfos.strike,
@@ -379,6 +381,36 @@ contract UserInfos {
         }
 
         return userContractList;
+    }
+
+    function getUserContracts(address _user) public view returns(UserContract[] memory) {
+        uint256 marketCount = IMain(_MAIN).getMarketCount();
+        uint256 totalContracts = 0;
+        address marketAddr;
+        address ERC721_Contract;
+
+        // First pass: count how many contracts the user has
+        for (uint256 x = 0; x < marketCount; x++) {
+            marketAddr = IMain(_MAIN).getIdToMarket(x);
+            ERC721_Contract = IMarketPool(marketAddr).getERC721_Contract();
+            totalContracts += IERC721x(ERC721_Contract).balanceOf(_user);
+        }
+
+        UserContract[] memory allUserContracts = new UserContract[](totalContracts);
+        uint256 contractIndex = 0;
+
+        // For all markets
+        for(uint256 i = 0 ; i < marketCount ; i++) {
+            UserContract[] memory marketUserContracts = GetUserContractsForMarket(i, _user);
+
+            // Add to allUserContracts
+            for (uint256 ii = 0; ii < marketUserContracts.length; ii++) {
+                allUserContracts[contractIndex] = marketUserContracts[ii];
+                contractIndex++;
+            }
+        }
+
+        return allUserContracts;
     }
 
 

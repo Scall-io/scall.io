@@ -7,6 +7,8 @@ import "./interfaces/IMarketPool.sol";
 import "./interfaces/IERC20x.sol";
 import "./interfaces/IERC721x.sol";
 
+import "hardhat/console.sol";
+
 contract ProtocolInfos {
 
     address private _MAIN;
@@ -483,19 +485,6 @@ contract ProtocolInfos {
         }
 
         return usersToLiquidate;
-    }
-
-    function getAllMarketsInfos() external view returns(IMain.marketInfos[] memory) {
-        IMain main = IMain(_MAIN);
-        uint256 marketCount = main.getMarketCount();
-        IMain.marketInfos[] memory allMarketsInfos = new IMain.marketInfos[](marketCount);
-
-        for(uint256 i ; i < marketCount ; i++) {
-            allMarketsInfos[i] = main.getIdToMarketInfos(i);
-        }
-
-        return allMarketsInfos;
-    } 
+    }   
 
 }
-

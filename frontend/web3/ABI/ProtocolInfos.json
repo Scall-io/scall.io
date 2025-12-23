@@ -105,6 +105,56 @@
 	},
 	{
 		"inputs": [],
+		"name": "getAllMarketsInfos",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "addr",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "tokenA",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "tokenB",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "priceFeed",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "intervalLength",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "range",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "yield",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct IMain.marketInfos[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "getAllUsers",
 		"outputs": [
 			{

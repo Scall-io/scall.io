@@ -82,22 +82,9 @@
 						"type": "bool"
 					}
 				],
-				"internalType": "struct ProtocolInfos.ContractInfos[]",
+				"internalType": "struct UiHelper.ContractInfos[]",
 				"name": "",
 				"type": "tuple[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getAllLps",
-		"outputs": [
-			{
-				"internalType": "address[]",
-				"name": "",
-				"type": "address[]"
 			}
 		],
 		"stateMutability": "view",
@@ -148,81 +135,6 @@
 				"internalType": "struct IMain.marketInfos[]",
 				"name": "",
 				"type": "tuple[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getAllUsers",
-		"outputs": [
-			{
-				"internalType": "address[]",
-				"name": "",
-				"type": "address[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getCollateralPoolBalanceDetail",
-		"outputs": [
-			{
-				"components": [
-					{
-						"internalType": "uint256",
-						"name": "CollateralToken",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "UsersBalance",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "LpsBalance",
-						"type": "uint256"
-					}
-				],
-				"internalType": "struct ProtocolInfos.CpBalanceDetail",
-				"name": "",
-				"type": "tuple"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getLpsCount",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_index",
-				"type": "uint256"
-			}
-		],
-		"name": "getMarketActiveStrikes",
-		"outputs": [
-			{
-				"internalType": "uint256[]",
-				"name": "",
-				"type": "uint256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -306,7 +218,7 @@
 						"type": "bool"
 					}
 				],
-				"internalType": "struct ProtocolInfos.ContractInfos[]",
+				"internalType": "struct UiHelper.ContractInfos[]",
 				"name": "",
 				"type": "tuple[]"
 			}
@@ -328,76 +240,6 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_index",
-				"type": "uint256"
-			}
-		],
-		"name": "getMarketAvailableLiquidation",
-		"outputs": [
-			{
-				"internalType": "address[]",
-				"name": "",
-				"type": "address[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_index",
-				"type": "uint256"
-			}
-		],
-		"name": "getMarketBalanceDetail",
-		"outputs": [
-			{
-				"components": [
-					{
-						"internalType": "uint256",
-						"name": "tokenA",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "tokenAProvided",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "tokenAFromPut",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "tokenB",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "tokenBProvided",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "tokenBFromCall",
-						"type": "uint256"
-					}
-				],
-				"internalType": "struct ProtocolInfos.MpBalanceDetail",
-				"name": "",
-				"type": "tuple"
 			}
 		],
 		"stateMutability": "view",
@@ -466,6 +308,203 @@
 				"internalType": "uint256",
 				"name": "_index",
 				"type": "uint256"
+			}
+		],
+		"name": "getMarketsStats",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "OI",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "liquidity",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct UiHelper.MarketStats",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "index",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "owner",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "ID",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "asset",
+						"type": "address"
+					},
+					{
+						"internalType": "bool",
+						"name": "isCall",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "strike",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "rent",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "start",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isITM",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "totalRent",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "collateral",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "needLiquidation",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct UiHelper.ContractInfos[]",
+				"name": "_array",
+				"type": "tuple[]"
+			}
+		],
+		"name": "getOlderIndex",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getRecentContracts",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "index",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "owner",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "ID",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "asset",
+						"type": "address"
+					},
+					{
+						"internalType": "bool",
+						"name": "isCall",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "strike",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "rent",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "start",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isITM",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "totalRent",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "collateral",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "needLiquidation",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct UiHelper.ContractInfos[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_index",
+				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
@@ -493,7 +532,7 @@
 						"type": "uint256"
 					}
 				],
-				"internalType": "struct ProtocolInfos.StrikeAprInfo[]",
+				"internalType": "struct UiHelper.StrikeAprInfo[]",
 				"name": "",
 				"type": "tuple[]"
 			}
@@ -518,67 +557,6 @@
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getUsersCount",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_x",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "_array",
-				"type": "uint256[]"
-			}
-		],
-		"name": "isPartOf",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "pure",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_x",
-				"type": "address"
-			},
-			{
-				"internalType": "address[]",
-				"name": "_array",
-				"type": "address[]"
-			}
-		],
-		"name": "isPartOf",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "pure",
 		"type": "function"
 	}
 ]

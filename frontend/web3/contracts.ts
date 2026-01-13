@@ -8,6 +8,7 @@ import MainABI from "./ABI/Main.json";
 import MarketPoolABI from "./ABI/MarketPool.json";
 import CollateralPoolABI from "./ABI/CollateralPool.json";
 import ProtocolInfosABI from "./ABI/ProtocolInfos.json";
+import UiHelperABI from "./ABI/UiHelper.json";
 import UserInfosABI from "./ABI/UserInfos.json";
 import UserHelperABI from "./ABI/UserHelper.json";
 import ERC20_ABI from "./ABI/ERC20.json";
@@ -27,7 +28,8 @@ export const ADDRESSES = {
   Main: "0x849d341edE8B40FfEA7E79C94e54b4c321118Ac9" as `0x${string}`,
   MarketcbBTC: "0x4c09fC5a31bbc41Bea5870d1B6D9c0aFA4f48967" as `0x${string}`,
   CollateralPool: "0xbBea3B2D6080c22f7B81f477a768D158e4671192" as `0x${string}`,
-  ProtocolInfos: "0x407B6C681F1aA3781bd8Fe5db2c457a6910A8dA6" as `0x${string}`,
+  ProtocolInfos: "0xd9665DcB70a3771bE9B6B3E16CFc02759f558e21" as `0x${string}`,
+  UiHelper: "0x9C39Df2aB9BA6A45b440737702a0548B3f8243CE" as `0x${string}`,
   UserInfos: "0x3be63b8a63f043C84A0b2f272F96cE928810A6C4" as `0x${string}`,
   UserHelper: "0x119570b354ECC09511e6676C5E330eaAf194aFFa" as `0x${string}`,
   USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as `0x${string}`,
@@ -63,6 +65,12 @@ export const Contracts = {
   ProtocolInfos: getContract({
     address: ADDRESSES.ProtocolInfos,
     abi: ProtocolInfosABI,
+    client: publicClient,
+  }),
+
+  UiHelper: getContract({
+    address: ADDRESSES.UiHelper,
+    abi: UiHelperABI,
     client: publicClient,
   }),
 

@@ -10,7 +10,6 @@ import Toast from "@/app/components/Toast";
 import SelectMenu, { type SelectMenuOption } from "@/app/components/SelectMenu";
 import InlineLoader from "@/app/components/InlineLoader";
 import { Skeleton } from "@/app/components/Skeleton";
-
 import TransactionModal, {
   TxStep,
 } from "@/app/components/TransactionModal";
@@ -49,7 +48,6 @@ export default function TradePage() {
   const { address } = useAccount();
 
   const [btcPrice, setBtcPrice] = useState<number | null>(null);
-  const [btcBalance, setBtcBalance] = useState<number | null>(null); // still loaded but not shown
 
   const [markets, setMarkets] = useState<MarketInfo[]>([]);
   const [selectedMarketIndex, setSelectedMarketIndex] = useState<number>(0);
@@ -78,6 +76,23 @@ export default function TradePage() {
     () => markets.find((m) => m.index === selectedMarketIndex) || null,
     [markets, selectedMarketIndex]
   );
+
+  // All markets for the currently selected asset (tokenA), regardless of APR tier.
+  // This is used for Market Stats and Recent Trades so those cards only reload when the asset changes,
+  // not when the user switches strike or APR tier.
+  const assetMarkets = useMemo(() => {
+    if (!selectedAssetToken) return [];
+
+    const ms = markets.filter(
+      (m) => m.tokenA.toLowerCase() === selectedAssetToken.toLowerCase()
+    );
+
+    if (!ms.length) return [];
+
+    // Safety: keep only markets that share the same tokenB as the first candidate (should be true in practice).
+    const tokenB0 = ms[0].tokenB.toLowerCase();
+    return ms.filter((m) => m.tokenB.toLowerCase() === tokenB0);
+  }, [markets, selectedAssetToken]);
 
   const assetSymbol = useMemo(() => {
     if (!selectedMarket) return "";
@@ -130,16 +145,8 @@ export default function TradePage() {
 
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
   const [isLoadingIntervals, setIsLoadingIntervals] = useState(false);
-  const [isLoadingBalances, setIsLoadingBalances] = useState(false);
   const [isLoadingMarketStats, setIsLoadingMarketStats] = useState(false);
   const [isLoadingRecentTrades, setIsLoadingRecentTrades] = useState(false);
-
-
-  const [availableLiquidity, setAvailableLiquidity] = useState<number | null>(
-    null
-  ); // per selected market (not used for routing anymore)
-  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false);
-
   const [aprAvailabilities, setAprAvailabilities] = useState<
     Record<number, number | null>
   >({});
@@ -150,7 +157,7 @@ export default function TradePage() {
   const [marketStats, setMarketStats] = useState<{
     totalLiquidityUsd: number;
     openInterestUsd: number;
-    totalVolumeUsd: number;
+    poolUtilizationPct: number; // OI / Liquidity * 100
   } | null>(null);
 
   const { writeContractAsync, isPending: isOpenPending } = useWriteContract();
@@ -223,125 +230,80 @@ export default function TradePage() {
     load();
   }, []);
 
-  // Load Trades for selected asset (all APR markets)
+  
+  // Load Trades for selected asset (all APR markets).
+  // Note: depends on assetMarkets so it reloads only when the asset changes (not when strike/APR tier changes).
   useEffect(() => {
     const loadRecentTrades = async () => {
-      if (!selectedMarket) {
+      if (!assetMarkets.length) {
         setRecentTrades([]);
         return;
       }
 
+      // All markets in assetMarkets share the same underlying tokenA (selected asset).
+      const assetToken = assetMarkets[0].tokenA;
+      const ZERO = "0x0000000000000000000000000000000000000000";
+
       try {
         setIsLoadingRecentTrades(true);
-        // All markets with same asset (tokenA + tokenB)
-        const sameAssetMarkets = markets.filter(
-          (m) =>
-            m.tokenA.toLowerCase() === selectedMarket.tokenA.toLowerCase() &&
-            m.tokenB.toLowerCase() === selectedMarket.tokenB.toLowerCase()
-        );
 
-        if (!sameAssetMarkets.length) {
-          setRecentTrades([]);
-          return;
-        }
+        const raw = (await publicClient.readContract({
+          address: ADDRESSES.UiHelper,
+          abi: Contracts.UiHelper.abi,
+          functionName: "getRecentContracts",
+        })) as any[];
 
         const trades: RecentTrade[] = [];
 
-        for (const m of sameAssetMarkets) {
-          // 1) ERC721 for this market
-          const erc721Addr = (await publicClient.readContract({
-            address: m.addr,
-            abi: Contracts.MarketPool.abi,
-            functionName: "getERC721_Contract",
-          })) as `0x${string}`;
+        for (const it of raw ?? []) {
+          const owner = (it.owner ?? it[1]) as `0x${string}`;
+          const idBN = (it.ID ?? it[2]) as bigint;
+          const asset = (it.asset ?? it[3]) as `0x${string}`;
+          const isCall = (it.isCall ?? it[4]) as boolean;
+          const strikeRaw = (it.strike ?? it[5]) as bigint;
+          const amountRaw = (it.amount ?? it[6]) as bigint;
+          const marketIndexRaw = (it.index ?? it[0]) as bigint;
 
-          // 2) All token IDs for this market
-          const allTokenIds = (await publicClient.readContract({
-            address: erc721Addr,
-            abi: Contracts.ABI.ERC721,
-            functionName: "getAllTokenIds",
-          })) as bigint[];
+          // UiHelper pads the array up to 10 items with empty entries.
+          if (!owner || owner.toLowerCase() === ZERO) continue;
+          if (!asset || asset.toLowerCase() === ZERO) continue;
+          if (!idBN || idBN === 0n) continue;
 
-          if (!allTokenIds.length) continue;
+          // Keep only trades for the currently selected asset (tokenA).
+          if (asset.toLowerCase() !== assetToken.toLowerCase()) continue;
 
-          // 3) Load all trades for now
-          for (const idBN of allTokenIds) {
-            const info = (await publicClient.readContract({
-              address: m.addr,
-              abi: Contracts.MarketPool.abi,
-              functionName: "getContractInfos",
-              args: [idBN],
-            })) as any;
+          const strike = Number(formatUnits(strikeRaw, 18)); // USD (18 decimals)
+          let amountBtc = 0;
 
-            const isCall = info.isCall as boolean;
-            const strikeRaw = info.strike as bigint;
-            const amountRaw = info.amount as bigint;
-
-            const strike = Number(formatUnits(strikeRaw, 18)); // USD
-            let amountBtc = 0;
-
-            if (isCall) {
-              // CALL: amount is in tokenA (BTC/ETH), 18 decimals
-              const amountTokenA = Number(formatUnits(amountRaw, 18));
-              amountBtc = amountTokenA;
-            } else {
-              // PUT: amount is in tokenB (USDC). Convert to BTC-equivalent using strike.
-              const amountUsd = Number(formatUnits(amountRaw, 18));
-              amountBtc = strike > 0 ? amountUsd / strike : 0;
-            }
-
-            trades.push({
-              id: Number(idBN),
-              marketIndex: m.index,
-              isCall,
-              strike,
-              amountBtc,
-            });
+          if (isCall) {
+            // CALL: amount is in tokenA (BTC/ETH), 18 decimals
+            amountBtc = Number(formatUnits(amountRaw, 18));
+          } else {
+            // PUT: amount is in tokenB (USD). Convert to BTC-equivalent using strike.
+            const amountUsd = Number(formatUnits(amountRaw, 18));
+            amountBtc = strike > 0 ? amountUsd / strike : 0;
           }
+
+          trades.push({
+            id: Number(idBN),
+            marketIndex: Number(marketIndexRaw),
+            isCall,
+            strike,
+            amountBtc,
+          });
         }
 
         setRecentTrades(trades);
       } catch (e) {
         console.error("Error loading recent trades:", e);
         setRecentTrades([]);
-      }
-      finally {
+      } finally {
         setIsLoadingRecentTrades(false);
       }
     };
 
     loadRecentTrades();
-  }, [selectedMarket, markets]);
-
-  // ---------- Load BTC (cbBTC) Balance ----------
-  useEffect(() => {
-    if (!address) {
-      setBtcBalance(null);
-      return;
-    }
-
-    const loadBalance = async () => {
-      try {
-        setIsLoadingBalances(true);
-        const raw = (await publicClient.readContract({
-          address: ADDRESSES.cbBTC,
-          abi: Contracts.ABI.ERC20,
-          functionName: "balanceOf",
-          args: [address],
-        })) as bigint;
-
-        const balance = parseFloat(formatUnits(raw, 18)); // cbBTC assumed 18 decimals
-        setBtcBalance(balance);
-      } catch (e) {
-        console.error("Error loading cbBTC balance:", e);
-        setBtcBalance(null);
-      } finally {
-        setIsLoadingBalances(false);
-      }
-    };
-
-    loadBalance();
-  }, [address]);
+  }, [assetMarkets]);
 
   // ---------- Load Markets from Main ----------
   useEffect(() => {
@@ -354,8 +316,8 @@ export default function TradePage() {
         // Returns: struct IMain.marketInfos[]
         // (addr, tokenA, tokenB, priceFeed, intervalLength, range, yield)
         const infos = (await publicClient.readContract({
-          address: ADDRESSES.ProtocolInfos,
-          abi: Contracts.ProtocolInfos.abi,
+          address: ADDRESSES.UiHelper,
+          abi: Contracts.UiHelper.abi,
           functionName: "getAllMarketsInfos",
         })) as any[];
 
@@ -409,10 +371,15 @@ export default function TradePage() {
     }
   }, [selectedAssetToken, markets, selectedMarketIndex]);
 
+  
   // ---------- Market stats across all APR markets ----------
+  // Uses UiHelper.getMarketsStats(index) which returns aggregated OI + liquidity (18 decimals) for that APR market.
+  // Note: depends on assetMarkets so it reloads only when the asset changes (not when strike/APR tier changes).
   useEffect(() => {
+    let cancelled = false;
+
     const loadMarketStats = async () => {
-      if (!selectedMarket) {
+      if (!assetMarkets.length) {
         setMarketStats(null);
         return;
       }
@@ -420,87 +387,37 @@ export default function TradePage() {
       try {
         setIsLoadingMarketStats(true);
 
-        // all markets with same asset (tokenA + tokenB)
-        const sameAssetMarkets = markets.filter(
-          (m) =>
-            m.tokenA.toLowerCase() === selectedMarket.tokenA.toLowerCase() &&
-            m.tokenB.toLowerCase() === selectedMarket.tokenB.toLowerCase()
-        );
-
-        if (!sameAssetMarkets.length) {
-          setMarketStats(null);
-          return;
-        }
-
-        let totalLiquidityUsd = 0;
-        let totalOpenInterestUsd = 0;
-        let totalVolumeUsd = 0;
-
-        for (const m of sameAssetMarkets) {
-          const marketIndex = BigInt(m.index);
-
-          const [liquidityArr, openInterestArr] = await Promise.all([
-            publicClient.readContract({
-              address: ADDRESSES.ProtocolInfos,
-              abi: Contracts.ProtocolInfos.abi,
-              functionName: "getMarketLiquidityProvided",
-              args: [marketIndex],
-            }) as Promise<bigint[]>,
-            publicClient.readContract({
-              address: ADDRESSES.ProtocolInfos,
-              abi: Contracts.ProtocolInfos.abi,
-              functionName: "getMarketOpenInterest",
-              args: [marketIndex],
-            }) as Promise<bigint[]>,
-          ]);
-
-          const callLiquidityRaw = liquidityArr[0] ?? 0;
-          const putLiquidityRaw = liquidityArr[1] ?? 0;
-          const callOpenRaw = openInterestArr[0] ?? 0;
-          const putOpenRaw = openInterestArr[1] ?? 0;
-
-          // asset price for this market
-          let assetPrice = 1;
-          if (
-            m.tokenA.toLowerCase() === ADDRESSES.cbBTC.toLowerCase() &&
-            btcPrice != null
-          ) {
-            assetPrice = btcPrice;
-          }
-
-          const callLiquidityAsset = parseFloat(
-            formatUnits(callLiquidityRaw, 18)
-          );
-          const callOpenAsset = parseFloat(formatUnits(callOpenRaw, 18));
-
-          const callLiquidityUsd = callLiquidityAsset * assetPrice;
-          const callOpenUsd = callOpenAsset * assetPrice;
-
-          const putLiquidityUsd = parseFloat(
-            formatUnits(putLiquidityRaw, 18)
-          );
-          const putOpenUsd = parseFloat(formatUnits(putOpenRaw, 18));
-
-          totalLiquidityUsd += callLiquidityUsd + putLiquidityUsd;
-          totalOpenInterestUsd += callOpenUsd + putOpenUsd;
-          totalVolumeUsd += callOpenUsd + putOpenUsd;
-        }
-
-        setMarketStats({
-          totalLiquidityUsd,
-          openInterestUsd: totalOpenInterestUsd,
-          totalVolumeUsd,
+        const idx = BigInt(assetMarkets[0].index);
+        const res = await publicClient.readContract({
+          address: ADDRESSES.UiHelper,
+          abi: Contracts.UiHelper.abi,
+          functionName: "getMarketsStats",
+          args: [idx],
         });
+
+        const oiRaw = (res as any)?.OI ?? (res as any)?.[0] ?? 0n;
+        const liqRaw = (res as any)?.liquidity ?? (res as any)?.[1] ?? 0n;
+
+        const openInterestUsd = parseFloat(formatUnits(oiRaw, 18));
+        const totalLiquidityUsd = parseFloat(formatUnits(liqRaw, 18));
+        const poolUtilizationPct =
+          totalLiquidityUsd > 0 ? (openInterestUsd / totalLiquidityUsd) * 100 : 0;
+
+        setMarketStats({ totalLiquidityUsd, openInterestUsd, poolUtilizationPct });
+
       } catch (e) {
         console.error("Error loading market stats:", e);
-        setMarketStats(null);
+        if (!cancelled) setMarketStats(null);
       } finally {
-        setIsLoadingMarketStats(false);
+        if (!cancelled) setIsLoadingMarketStats(false);
       }
     };
 
     loadMarketStats();
-  }, [selectedMarket, markets, btcPrice]);
+    return () => {
+      cancelled = true;
+    };
+  }, [assetMarkets]);
 
   // ---------- Load Intervals from selected MarketPool ----------
   useEffect(() => {
@@ -557,8 +474,8 @@ export default function TradePage() {
     const loadStrikeAvailabilities = async () => {
       try {
         const raw = (await publicClient.readContract({
-          address: ADDRESSES.ProtocolInfos,
-          abi: Contracts.ProtocolInfos.abi,
+          address: ADDRESSES.UiHelper,
+          abi: Contracts.UiHelper.abi,
           functionName: "getMarketsAvlLiquidity",
           args: [BigInt(selectedMarket.index)],
         })) as bigint[];
@@ -640,61 +557,8 @@ export default function TradePage() {
     setHasUserSelectedAprManually(false);
   }, [selectedAssetToken, optionType]);
 
-  // ---------- Load available liquidity for this strike from selected market (informational) ----------
-  useEffect(() => {
-    const loadAvailable = async () => {
-      if (!selectedMarket || !currentStrikeOption) {
-        setAvailableLiquidity(null);
-        return;
-      }
-
-      try {
-        setIsLoadingAvailable(true);
-        // Convert the chosen strike price → uint256 with 18 decimals
-        const strikeWei = parseUnits(
-          currentStrikeOption.price.toString(),
-          18
-        );
-
-        const info = (await publicClient.readContract({
-          address: selectedMarket.addr,
-          abi: Contracts.MarketPool.abi,
-          functionName: "getStrikeInfos",
-          args: [strikeWei],
-        })) as any;
-
-        const callLP = parseFloat(formatUnits(info.callLP as bigint, 18));
-        const callLU = parseFloat(formatUnits(info.callLU as bigint, 18));
-        const callLR = parseFloat(formatUnits(info.callLR as bigint, 18));
-        const putLP = parseFloat(formatUnits(info.putLP as bigint, 18));
-        const putLU = parseFloat(formatUnits(info.putLU as bigint, 18));
-        const putLR = parseFloat(formatUnits(info.putLR as bigint, 18));
-        const strike = currentStrikeOption.price;
-
-        let available = 0;
-
-        if (optionType === "CALL") {
-          // Available in BTC
-          available = callLP - callLU - callLR / strike;
-        } else {
-          // Available in USDC converted to BTC
-          available = (putLP - putLU - putLR * strike) / strike;
-        }
-
-        if (!Number.isFinite(available) || available < 0) available = 0;
-        setAvailableLiquidity(available);
-      } catch (e) {
-        console.error("Error loading strike liquidity:", e);
-        setAvailableLiquidity(null);
-      } finally {
-        setIsLoadingAvailable(false);
-      }
-    };
-
-    loadAvailable();
-  }, [selectedMarket, currentStrikeOption, optionType]);
-
   // ---------- Load available liquidity for each APR market (same asset, current strike) ----------
+  // Uses ProtocolInfos.getStrikeAprOptions() (single RPC) instead of calling each MarketPool.
   useEffect(() => {
     const loadAprAvailabilities = async () => {
       if (!currentStrikeOption || !aprOptions.length) {
@@ -703,51 +567,45 @@ export default function TradePage() {
       }
 
       try {
-        const strikeWei = parseUnits(
-          currentStrikeOption.price.toString(),
-          18
-        );
+        const strikeWei = parseUnits(currentStrikeOption.price.toString(), 18);
+
+        // Any market index for this asset works as the base index for the query.
+        const baseIndex = BigInt(aprOptions[0].index);
+
+        const infos = (await publicClient.readContract({
+          address: ADDRESSES.UiHelper,
+          abi: Contracts.UiHelper.abi,
+          functionName: "getStrikeAprOptions",
+          args: [baseIndex, strikeWei],
+        })) as any[];
+
+        // Map by yield (18 decimals) because Trade UI groups markets by tokenA + yield.
+        const byYield = new Map<string, { callAvlLiq: bigint; putAvlLiq: bigint }>();
+        for (const it of infos ?? []) {
+          const y = (it.yield ?? it[0]) as bigint;
+          const callAvlLiq = (it.callAvlLiq ?? it[1]) as bigint;
+          const putAvlLiq = (it.putAvlLiq ?? it[2]) as bigint;
+          byYield.set(y.toString(), { callAvlLiq, putAvlLiq });
+        }
 
         const results: Record<number, number | null> = {};
-
         for (const m of aprOptions) {
-          try {
-            const info = (await publicClient.readContract({
-              address: m.addr,
-              abi: Contracts.MarketPool.abi,
-              functionName: "getStrikeInfos",
-              args: [strikeWei],
-            })) as any;
-
-            const callLP = parseFloat(formatUnits(info.callLP as bigint, 18));
-            const callLU = parseFloat(formatUnits(info.callLU as bigint, 18));
-            const callLR = parseFloat(formatUnits(info.callLR as bigint, 18));
-            const putLP = parseFloat(formatUnits(info.putLP as bigint, 18));
-            const putLU = parseFloat(formatUnits(info.putLU as bigint, 18));
-            const putLR = parseFloat(formatUnits(info.putLR as bigint, 18));
-            const strike = currentStrikeOption.price;
-
-            let available = 0;
-
-            if (optionType === "CALL") {
-              // Available in asset units (BTC/ETH)
-              available = callLP - callLU - callLR / strike;
-            } else {
-              // Available in asset units via PUT side
-              available = (putLP - putLU - putLR * strike) / strike;
-            }
-
-            if (!Number.isFinite(available) || available < 0) available = 0;
-            results[m.index] = available;
-          } catch (err) {
-            console.error("Error loading APR market liquidity", m.index, err);
+          const hit = byYield.get(m.yield.toString());
+          if (!hit) {
             results[m.index] = null;
+            continue;
           }
+
+          const liqRaw = optionType === "CALL" ? hit.callAvlLiq : hit.putAvlLiq;
+          let available = parseFloat(formatUnits(liqRaw, 18));
+
+          if (!Number.isFinite(available) || available < 0) available = 0;
+          results[m.index] = available;
         }
 
         setAprAvailabilities(results);
       } catch (err) {
-        console.error("Error preparing APR availabilities:", err);
+        console.error("Error loading APR availabilities:", err);
         setAprAvailabilities({});
       }
     };
@@ -1569,14 +1427,9 @@ export default function TradePage() {
                 <span>Amount (BTC)</span>
                 <span className="text-gray-500">
                   Available:{" "}
-                  {isLoadingAvailable ? (
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
-                      <span>Loading…</span>
-                    </span>
-                  ) : totalAvailableLiquidity !== null ? (
+                  {totalAvailableLiquidity !== null ? 
                     `${totalAvailableLiquidity.toFixed(6)} BTC`
-                  ) : (
+                   : (
                     "- BTC"
                   )}
                 </span>
@@ -1835,53 +1688,55 @@ export default function TradePage() {
                   Market Stats
                 </h3>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">24h Volume</span>
-                    <span className="font-semibold text-gray-900">
-                      {marketStats
-                        ? `$${marketStats.totalVolumeUsd.toLocaleString(
-                            undefined,
-                            {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }
-                          )}`
-                        : "-"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
-                      Open Interest
-                    </span>
-                    <span className="font-semibold text-gray-900">
-                      {marketStats
-                        ? `$${marketStats.openInterestUsd.toLocaleString(
-                            undefined,
-                            {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }
-                          )}`
-                        : "-"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
-                      Total Liquidity
-                    </span>
-                    <span className="font-semibold text-gray-900">
-                      {marketStats
-                        ? `$${marketStats.totalLiquidityUsd.toLocaleString(
-                            undefined,
-                            {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }
-                          )}`
-                        : "-"}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Pool Utilization %
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    {marketStats
+                      ? `${marketStats.poolUtilizationPct.toLocaleString(
+                          undefined,
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}%`
+                      : "-"}
+                  </span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Open Interest
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    {marketStats
+                      ? `$${marketStats.openInterestUsd.toLocaleString(
+                          undefined,
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}`
+                      : "-"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Total Liquidity
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    {marketStats
+                      ? `$${marketStats.totalLiquidityUsd.toLocaleString(
+                          undefined,
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}`
+                      : "-"}
+                  </span>
+                </div>
+              </div>
                </>
               )}
             </div>

@@ -14,10 +14,6 @@ import TransactionModal, {
   TxStep,
 } from "@/app/components/TransactionModal";
 
-import MarketPoolABI from "@/web3/ABI/MarketPool.json";
-import MainABI from "@/web3/ABI/Main.json";
-import ProtocolInfosABI from "@/web3/ABI/ProtocolInfos.json";
-
 type MarketInfo = {
   index: number;
   addr: `0x${string}`;
@@ -115,8 +111,8 @@ export default function EarnPage() {
         setIsLoadingMarkets(true);
 
         const all = (await publicClient.readContract({
-          address: ADDRESSES.ProtocolInfos,
-          abi: ProtocolInfosABI,
+          address: ADDRESSES.UiHelper,
+          abi: Contracts.UiHelper.abi,
           functionName: "getAllMarketsInfos",
         })) as any[]; // viem returns an array of structs (objects)
 
@@ -208,12 +204,12 @@ export default function EarnPage() {
         const [lengthBN, intervalsBN] = await Promise.all([
           publicClient.readContract({
             address: selectedMarket.addr,
-            abi: MarketPoolABI,
+            abi: Contracts.MarketPool.abi,
             functionName: "getIntervalLength",
           }) as Promise<bigint>,
           publicClient.readContract({
             address: selectedMarket.addr,
-            abi: MarketPoolABI,
+            abi: Contracts.MarketPool.abi,
             functionName: "getIntervals",
           }) as Promise<bigint[]>,
         ]);
@@ -276,6 +272,7 @@ export default function EarnPage() {
 
 
   // ---------- Load available liquidity for each APR market (same asset, current strike) ----------
+  // Uses ProtocolInfos.getStrikeAprOptions() (single RPC) instead of calling each MarketPool.
   useEffect(() => {
     const loadAprAvailabilities = async () => {
       if (!currentStrikeOption || !aprOptions.length) {
@@ -284,57 +281,53 @@ export default function EarnPage() {
       }
 
       try {
-        const strikeWei = parseUnits(
-          currentStrikeOption.price.toString(),
-          18
-        );
+        const strikeWei = parseUnits(currentStrikeOption.price.toString(), 18);
+
+        // For a given asset + strike, the contract returns the availability for all APR tiers.
+        // We pass the first APR market index for that asset as the "market family" index.
+        const baseIndex = BigInt(aprOptions[0].index);
+
+        const infos = (await publicClient.readContract({
+          address: ADDRESSES.UiHelper,
+          abi: Contracts.UiHelper.abi,
+          functionName: "getStrikeAprOptions",
+          args: [baseIndex, strikeWei],
+        })) as any[];
+
+        // Map by yield (18 decimals) because Earn UI groups markets by tokenA + yield.
+        const byYield = new Map<string, { callAvlLiq: bigint; putAvlLiq: bigint }>();
+        for (const it of infos ?? []) {
+          const y = (it.yield ?? it[0]) as bigint;
+          const callAvlLiq = (it.callAvlLiq ?? it[1]) as bigint;
+          const putAvlLiq = (it.putAvlLiq ?? it[2]) as bigint;
+          byYield.set(y.toString(), { callAvlLiq, putAvlLiq });
+        }
 
         const results: Record<number, number | null> = {};
-
         for (const m of aprOptions) {
-          try {
-            const info = (await publicClient.readContract({
-              address: m.addr,
-              abi: MarketPoolABI,
-              functionName: "getStrikeInfos",
-              args: [strikeWei],
-            })) as any;
-
-            const callLP = parseFloat(formatUnits(info.callLP as bigint, 18));
-            const callLU = parseFloat(formatUnits(info.callLU as bigint, 18));
-            const callLR = parseFloat(formatUnits(info.callLR as bigint, 18));
-            const putLP = parseFloat(formatUnits(info.putLP as bigint, 18));
-            const putLU = parseFloat(formatUnits(info.putLU as bigint, 18));
-            const putLR = parseFloat(formatUnits(info.putLR as bigint, 18));
-            const strike = currentStrikeOption.price;
-
-            let available = 0;
-
-            if (lpType === "call") {
-              // Available in underlying asset units (BTC/ETH)
-              available = callLP - callLU - callLR / strike;
-            } else {
-              // PUT side: available in underlying asset units via USDC side
-              available = (putLP - putLU - putLR * strike) / strike;
-            }
-
-            if (!Number.isFinite(available) || available < 0) available = 0;
-            results[m.index] = available;
-          } catch (err) {
-            console.error("Error loading APR market liquidity", m.index, err);
+          const hit = byYield.get(m.yield.toString());
+          if (!hit) {
             results[m.index] = null;
+            continue;
           }
+
+          const liqRaw = lpType === "call" ? hit.callAvlLiq : hit.putAvlLiq;
+          let available = parseFloat(formatUnits(liqRaw, 18));
+
+          if (!Number.isFinite(available) || available < 0) available = 0;
+          results[m.index] = available;
         }
 
         setAprAvailabilities(results);
       } catch (err) {
-        console.error("Error preparing APR availabilities:", err);
+        console.error("Error loading APR availabilities:", err);
         setAprAvailabilities({});
       }
     };
 
     loadAprAvailabilities();
   }, [aprOptions, currentStrikeOption, lpType]);
+
 
   // ---------- Load Balances (cbBTC and USDC) ----------
   useEffect(() => {
@@ -391,7 +384,7 @@ export default function EarnPage() {
       try {
         const raw = (await publicClient.readContract({
           address: ADDRESSES.Main,
-          abi: MainABI,
+          abi: Contracts.Main.abi,
           functionName: "getFees",
         })) as bigint;
 
@@ -419,13 +412,13 @@ export default function EarnPage() {
       const [liquidityArr, openInterestArr] = await Promise.all([
         publicClient.readContract({
           address: ADDRESSES.ProtocolInfos,
-          abi: ProtocolInfosABI,
+          abi: Contracts.ProtocolInfos.abi,
           functionName: "getMarketLiquidityProvided",
           args: [marketIndex],
         }) as Promise<bigint[]>,
         publicClient.readContract({
           address: ADDRESSES.ProtocolInfos,
-          abi: ProtocolInfosABI,
+          abi: Contracts.ProtocolInfos.abi,
           functionName: "getMarketOpenInterest",
           args: [marketIndex],
         }) as Promise<bigint[]>,
@@ -754,7 +747,7 @@ export default function EarnPage() {
 
       const depositHash = await writeContractAsync({
         address: selectedMarket.addr,
-        abi: MarketPoolABI,
+        abi: Contracts.MarketPool.abi,
         functionName: "deposit",
         args: [isCall, BigInt(strikeParam), parsedAmount],
       });

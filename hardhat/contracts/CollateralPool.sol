@@ -221,31 +221,31 @@ contract CollateralPool {
     }
 
     /// @notice Liquidates a user's contract if they meet the liquidation criteria.
-    /// @param _user The address of the user.
     /// @param _index The market index.
     /// @param _id The ID of the user's position.
     /// @return The penalty amount awarded to the liquidator (18 decimals).
-    function liquidateContract(address _user, uint256 _index, uint256 _id) external returns(uint256) {
+    function liquidateContract(uint256 _index, uint256 _id) external returns(uint256) {
 
         // Get infos
+        address user = IERC721x(IMarketPool(IMain(_MAIN).getIdToMarket(_index)).getERC721_Contract()).ownerOf(_id);
         uint256 liqThresh = IMain(_MAIN).getLiquidationThreshold();
         uint256 liqPen = IMain(_MAIN).getLiquidationPenalty();
 
         // Need liquidation ?
-        require(balanceOf(_user) < _userInfos[_user].rent * liqThresh, "No liquidation needed");
+        require(balanceOf(user) < _userInfos[user].rent * liqThresh, "No liquidation needed");
 
         // Calcul penalty
-        uint256 penalty = (balanceOf(_user) * liqPen) / 1e18;
+        uint256 penalty = (balanceOf(user) * liqPen) / 1e18;
 
         // Close Contract
         IMarketPool(IMain(_MAIN).getIdToMarket(_index)).liquidateContract(_id);
 
         // Send rewards to liquidator
         IERC20x(_COLLATERALTOKEN).transfer(msg.sender, toCollateralTokenDecimals(penalty));
-        _userInfos[_user].collateral -= penalty;
+        _userInfos[user].collateral -= penalty;
 
         // Emit event for contract liquidation
-        emit ContractLiquidated(msg.sender, _user, toCollateralTokenDecimals(penalty));
+        emit ContractLiquidated(msg.sender, user, toCollateralTokenDecimals(penalty));
 
         return penalty;        
     }

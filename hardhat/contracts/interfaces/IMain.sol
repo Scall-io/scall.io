@@ -9,6 +9,7 @@ interface IMain {
         address priceFeed;
         uint256 intervalLength;
         uint256 range;
+        uint256 maxPriceStaleness;
         uint256 yield;     
     }
     function getCollateralToken() external view returns(address);

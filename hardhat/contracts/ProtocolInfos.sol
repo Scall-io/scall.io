@@ -411,7 +411,7 @@ contract ProtocolInfos {
                 ID = IERC721x(ERC721_LpAddr).tokenOfOwnerByIndex(_lp, ii);
 
                 // Get rewards
-                rewards += IMarketPool(marketAddr).getRewards(ID, 0);
+                rewards += IMarketPool(marketAddr).getRewards(ID);
             }
             
         }

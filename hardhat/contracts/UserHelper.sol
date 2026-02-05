@@ -37,7 +37,7 @@ contract UserHelper {
                 ID = IERC721x(ERC721_LpAddr).tokenOfOwnerByIndex(msg.sender, ii);
 
                 // Get rewards
-                collateralPool.claimRewards(0, ID, 0);
+                collateralPool.claimRewards(0, ID);
             }
             
         }

@@ -805,7 +805,7 @@ export default function EarnPage() {
   }, [strikeOptions, lpType]);
 
   return (
-    <main id="earn-page" className="pt-24 pb-12">
+    <main id="earn-page" className="pt-20 sm:pt-24 pb-10 sm:pb-12">
       {toast && (
         <Toast
           message={toast.message}
@@ -823,23 +823,23 @@ export default function EarnPage() {
         }}
       />
 
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: main liquidity card */}
           <div
             id="liquidity-card"
-            className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-8 shadow-sm"
+            className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 lg:p-8 shadow-sm"
           >
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 sm:mb-8">
               <div>
-                <h1 className="text-3xl font-bold mb-2 text-gray-900">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-gray-900">
                   Provide Liquidity
                 </h1>
-                <p className="text-gray-600">
+                <p className="text-sm sm:text-base text-gray-600">
                   Earn weekly rewards by providing liquidity to option markets
                 </p>
               </div>
-              <div id="current-price-display" className="text-right">
+              <div id="current-price-display" className="text-left lg:text-right">
                 <p className="text-sm text-gray-500 mb-1">BTC Price</p>
                 <p className="text-3xl font-bold text-green-600">
                   {btcPrice !== null
@@ -859,7 +859,7 @@ export default function EarnPage() {
             >
               <button
                 onClick={() => setLpType("call")}
-                className={`cursor-pointer flex-1 py-3 rounded-lg font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] ${
+                className={`cursor-pointer flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] ${
                   lpType === "call"
                     ? "bg-green-500 text-white"
                     : "text-gray-600 hover:text-gray-900"
@@ -871,7 +871,7 @@ export default function EarnPage() {
 
               <button
                 onClick={() => setLpType("put")}
-                className={`cursor-pointer flex-1 py-3 rounded-lg font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] ${
+                className={`cursor-pointer flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] ${
                   lpType === "put"
                     ? "bg-red-500 text-white"
                     : "text-gray-600 hover:text-gray-900"
@@ -1244,14 +1244,14 @@ export default function EarnPage() {
                   )}
                 </span>
               </label>
-              <div className="bg-gray-50 border border-gray-300 rounded-xl p-4 mb-4">
+              <div className="bg-gray-50 border border-gray-300 rounded-xl p-3 sm:p-4 mb-4">
                 <input
                   id="amount-input"
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   step={currentAssetSymbol === "BTC" ? 0.000001 : 0.01}
-                  className="w-full bg-transparent text-2xl font-bold text-gray-900 focus:outline-none"
+                  className="w-full bg-transparent text-xl sm:text-2xl font-bold text-gray-900 focus:outline-none"
                 />
                 <div className="flex items-center justify-between mt-3">
                   <span id="usd-value" className="text-sm text-gray-500">
@@ -1291,13 +1291,13 @@ export default function EarnPage() {
             {/* Estimated earnings */}
             <div
               id="earnings-display"
-              className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6"
+              className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-6 mb-6"
             >
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-700">
                   Estimated Weekly Earnings
                 </span>
-                <span className="text-2xl font-bold text-green-600">
+                <span className="text-xl sm:text-2xl font-bold text-green-600">
                   {`$${estimatedWeeklyEarnings.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -1314,7 +1314,7 @@ export default function EarnPage() {
 
             <button
               id="deposit-liquidity-btn"
-              className="cursor-pointer w-full bg-gradient-to-r from-primary to-secondary py-4 rounded-xl font-bold text-lg text-white hover:shadow-lg hover:shadow-primary/50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              className="cursor-pointer w-full bg-gradient-to-r from-primary to-secondary py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg text-white hover:shadow-lg hover:shadow-primary/50 transition disabled:opacity-60 disabled:cursor-not-allowed"
               onClick={handleDeposit}
               disabled={isProcessingDeposit || !address}
             >
@@ -1326,7 +1326,7 @@ export default function EarnPage() {
             </button>
 
             {/* Info cards */}
-            <div id="info-cards" className="grid grid-cols-3 gap-4 mt-6">
+            <div id="info-cards" className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                 <i className="fas fa-percentage text-green-600 text-xl mb-2" />
                 <p className="text-xs text-gray-600 mb-1">Current APR</p>
@@ -1349,7 +1349,7 @@ export default function EarnPage() {
           <div id="sidebar" className="space-y-6">
             <div
               id="liquidity-summary-card"
-              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
+              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-sm"
             >
               <h3 className="text-lg font-bold mb-4 text-gray-900">
                 Liquidity Summary
@@ -1439,7 +1439,7 @@ export default function EarnPage() {
 
             <div
               id="pool-statistics-card"
-              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
+              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-sm"
             >
               <h3 className="text-lg font-bold mb-4 text-gray-900">
                 Pool Statistics
@@ -1516,7 +1516,7 @@ export default function EarnPage() {
 
             <div
               id="rewards-card"
-              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
+              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-sm"
             >
               <h3 className="text-lg font-bold mb-4 text-gray-900">
                 Rewards Breakdown
@@ -1577,9 +1577,9 @@ export default function EarnPage() {
         {/* Education cards */}
         <div
           id="education-section"
-          className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6"
+          className="mt-8 md:mt-10 grid grid-cols-1 md:grid-cols-3 gap-6"
         >
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-primary hover:shadow-md transition cursor-pointer">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 hover:border-primary hover:shadow-md transition cursor-pointer">
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
               <i className="fas fa-hand-holding-dollar text-green-600 text-xl" />
             </div>
@@ -1591,7 +1591,7 @@ export default function EarnPage() {
               market is bullish.
             </p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-primary hover:shadow-md transition cursor-pointer">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 hover:border-primary hover:shadow-md transition cursor-pointer">
             <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4">
               <i className="fas fa-shield-halved text-red-600 text-xl" />
             </div>
@@ -1603,7 +1603,7 @@ export default function EarnPage() {
               downside protection.
             </p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-primary hover:shadow-md transition cursor-pointer">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 hover:border-primary hover:shadow-md transition cursor-pointer">
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
               <i className="fas fa-infinity text-purple-600 text-xl" />
             </div>

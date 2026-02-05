@@ -729,7 +729,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div id="dashboard-page" className="pt-24 pb-12 bg-light text-gray-900">
+    <div id="dashboard-page" className="pt-20 sm:pt-24 pb-10 md:pb-12 bg-light text-gray-900">
       {toast && (
         <Toast
           message={toast.message}
@@ -745,10 +745,10 @@ export default function DashboardPage() {
           setTxSteps([]);
         }}
       />
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* HEADER */}
-        <div id="dashboard-header" className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-gray-900">Dashboard</h1>
+        <div id="dashboard-header" className="mb-6 md:mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-gray-900">Dashboard</h1>
           <p className="text-gray-600">
             Manage your positions, liquidity, and collateral
           </p>
@@ -762,10 +762,10 @@ export default function DashboardPage() {
           {/* Collateral Management */}
           <div
             id="collateral-management-card"
-            className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm"
+            className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Collateral Management
               </h2>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -773,7 +773,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Total Collateral</p>
                 <div className="text-xl font-bold text-gray-900">
@@ -812,7 +812,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="border-t border-gray-200 pt-6">
-              <div className="flex space-x-2 mb-4">
+              <div className="flex gap-2 mb-4">
                 <button
                   onClick={() => setMode("deposit")}
                   className={`
@@ -915,10 +915,10 @@ export default function DashboardPage() {
           {/* Liquidity Management */}
           <div
             id="liquidity-management-card"
-            className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm"
+            className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Liquidity Management
               </h2>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -926,7 +926,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">
                   Total Open Interest
@@ -1022,11 +1022,11 @@ export default function DashboardPage() {
           {/* Open Trade Positions */}
           <div
             id="open-trade-positions"
-            className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm"
+            className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm"
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                   Open Trade Positions
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
@@ -1039,7 +1039,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[760px]">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
@@ -1160,7 +1160,7 @@ export default function DashboardPage() {
               </table>
             </div>
 
-            <div className="mt-6 grid grid-cols-4 gap-4">
+            <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <p className="text-xs text-gray-600 mb-1">Total Invested</p>
                 <p className="text-lg font-bold text-gray-900">
@@ -1209,11 +1209,11 @@ export default function DashboardPage() {
           {/* LP POSITIONS */}
           <div
             id="liquidity-provider-positions"
-            className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm"
+            className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm"
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                   Liquidity Provider Positions
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
@@ -1254,9 +1254,9 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={`${lp.index}-${lp.id}`}
-                      className="border border-gray-200 rounded-xl p-6 hover:border-primary hover:shadow-md transition"
+                      className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:border-primary hover:shadow-md transition"
                     >
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                         <div className="flex items-center">
                           <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
                             <i
@@ -1302,7 +1302,7 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center flex-wrap gap-2">
                           <div className="flex items-center px-3 py-1 bg-blue-50 rounded-full">
                             <i className="fas fa-percentage text-blue-600 text-xs mr-1" />
                             <span className="text-xs text-blue-600 font-semibold">
@@ -1312,7 +1312,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-4 mb-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Amount</p>
                           <p className="text-sm font-bold text-gray-900">
@@ -1344,7 +1344,7 @@ export default function DashboardPage() {
                               minimumFractionDigits: 2, maximumFractionDigits: 2,
                             })}
                           </p>
-                          <div className="flex items-center space-x-2 mt-1">
+                          <div className="flex items-center flex-wrap gap-2 mt-1">
                             <div className="flex items-center bg-blue-50 px-2 py-0.5 rounded">
                               <i className="fab fa-bitcoin text-blue-500 text-xs mr-1" />
                               <span className="text-xs text-gray-700 font-medium">{lp.withdrawableTokenA.toLocaleString(
@@ -1380,7 +1380,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         <button
                           className="cursor-pointer flex-1 bg-gray-100 hover:bg-gray-200 py-2.5 rounded-lg font-semibold text-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
                           disabled={!address || closingLpId === lp.id}

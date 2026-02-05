@@ -1013,7 +1013,7 @@ export default function TradePage() {
   );
 
   return (
-    <div id="trade-page" className="pt-24 pb-12">
+    <div id="trade-page" className="pt-16 sm:pt-20 lg:pt-24 pb-10 sm:pb-12">
       {/* Toast */}
       {toast && (
         <Toast
@@ -1033,16 +1033,16 @@ export default function TradePage() {
         }}
       />
 
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Main trading card */}
           <div
             id="trading-card"
-            className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm"
+            className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 lg:p-8 shadow-sm"
           >
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="mb-2 text-3xl font-bold text-gray-900">
+                <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-gray-900">
                   Trade Options
                 </h1>
                 <p className="text-gray-600">
@@ -1051,7 +1051,7 @@ export default function TradePage() {
               </div>
               <div id="current-price-display" className="text-right">
                 <p className="mb-1 text-sm text-gray-500">BTC Price</p>
-                <p className="text-3xl font-bold text-green-600">
+                <p className="text-2xl sm:text-3xl font-bold text-green-600">
                   {btcPrice !== null
                     ? `$${btcPrice.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
@@ -1070,7 +1070,7 @@ export default function TradePage() {
               <button
                 id="call-btn"
                 onClick={() => setOptionType("CALL")}
-                className={`flex-1 cursor-pointer rounded-lg py-3 font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]
+                className={`flex-1 cursor-pointer rounded-lg py-2.5 sm:py-3 text-sm sm:text-base font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]
                   ${
                     optionType === "CALL"
                       ? "bg-green-500 text-white shadow-sm"
@@ -1084,7 +1084,7 @@ export default function TradePage() {
               <button
                 id="put-btn"
                 onClick={() => setOptionType("PUT")}
-                className={`flex-1 cursor-pointer rounded-lg py-3 font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]
+                className={`flex-1 cursor-pointer rounded-lg py-2.5 sm:py-3 text-sm sm:text-base font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]
                   ${
                     optionType === "PUT"
                       ? "bg-red-500 text-white shadow-sm"
@@ -1151,7 +1151,7 @@ export default function TradePage() {
                     value={strikePosition}
                     options={strikeMenuOptions}
                     onChange={(v) => setStrikePosition(v)}
-                    buttonClassName="cursor-pointer bg-transparent border-0 px-4 py-4 focus:ring-0 focus:border-transparent"
+                    buttonClassName="cursor-pointer bg-transparent border-0 px-4 py-3 sm:py-4 text-sm sm:text-base focus:ring-0 focus:border-transparent"
                     menuClassName="w-full left-0"
                   />
                 )}
@@ -1250,7 +1250,7 @@ export default function TradePage() {
                               setSelectedMarketIndex(m.index);
                             }}
                             className={[
-                              "apr-option bg-gradient-to-br rounded-xl p-5 w-full cursor-pointer transition border-2",
+                              "apr-option bg-gradient-to-br rounded-xl p-4 sm:p-5 w-full cursor-pointer transition border-2",
                               style.card,
                               isActive ? `${style.activeBorder} shadow-md` : "hover:shadow-lg",
                             ].join(" ")}
@@ -1258,7 +1258,7 @@ export default function TradePage() {
                             <div className="text-center">
                               <div className="mb-3">
                                 <span
-                                  className={`font-bold text-2xl block ${style.textMain}`}
+                                  className={`font-bold text-xl sm:text-2xl block ${style.textMain}`}
                                 >
                                   {aprPct.toFixed(2)}%
                                 </span>
@@ -1362,7 +1362,7 @@ export default function TradePage() {
                                 setSelectedMarketIndex(m.index);
                               }}
                               className={[
-                                "apr-option bg-gradient-to-br rounded-xl p-5 min-w-[220px] snap-start cursor-pointer transition border-2",
+                                "apr-option bg-gradient-to-br rounded-xl p-4 sm:p-5 min-w-[200px] sm:min-w-[220px] snap-start cursor-pointer transition border-2",
                                 style.card,
                                 isActive
                                   ? `${style.activeBorder} shadow-md`
@@ -1372,7 +1372,7 @@ export default function TradePage() {
                               <div className="text-center">
                                 <div className="mb-3">
                                   <span
-                                    className={`font-bold text-2xl block ${style.textMain}`}
+                                    className={`font-bold text-xl sm:text-2xl block ${style.textMain}`}
                                   >
                                     {aprPct.toFixed(2)}%
                                   </span>
@@ -1423,7 +1423,7 @@ export default function TradePage() {
 
             {/* Amount selector */}
             <div id="amount-selector" className="mb-6">
-              <label className="mb-3 flex items-center justify-between text-sm text-gray-600">
+              <label className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm text-gray-600">
                 <span>Amount (BTC)</span>
                 <span className="text-gray-500">
                   Available:{" "}
@@ -1434,7 +1434,7 @@ export default function TradePage() {
                   )}
                 </span>
               </label>
-              <div className="mb-4 rounded-xl border border-gray-300 bg-gray-50 p-4">
+              <div className="mb-4 rounded-xl border border-gray-300 bg-gray-50 p-3 sm:p-4">
                 <input
                   id="amount-input"
                   type="number"
@@ -1464,7 +1464,7 @@ export default function TradePage() {
                       }
                     }
                   }}
-                  className="w-full bg-transparent text-2xl font-bold text-gray-900 focus:outline-none"
+                  className="w-full bg-transparent text-xl sm:text-2xl font-bold text-gray-900 focus:outline-none"
                 />
                 <div className="mt-3 flex items-center justify-between">
                   <span id="usd-value" className="text-sm text-gray-500">
@@ -1504,11 +1504,11 @@ export default function TradePage() {
             {/* Cost display */}
             <div
               id="cost-display"
-              className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-6"
+              className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:p-6"
             >
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-gray-700">Weekly Rent Cost</span>
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-xl sm:text-2xl font-bold text-gray-900">
                   {`$${weeklyCost.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -1528,7 +1528,7 @@ export default function TradePage() {
             {/* Open position button */}
             <button
               id="open-position-btn"
-              className="w-full cursor-pointer rounded-xl bg-gradient-to-r from-primary to-secondary py-4 text-lg font-bold text-white shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-lg hover:shadow-primary/50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full cursor-pointer rounded-xl bg-gradient-to-r from-primary to-secondary py-3.5 sm:py-4 text-base sm:text-lg font-bold text-white shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-lg hover:shadow-primary/50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
               onClick={handleOpenPosition}
               disabled={isOpenPending || !address}
             >
@@ -1540,7 +1540,7 @@ export default function TradePage() {
             {/* Info cards */}
             <div
               id="info-cards"
-              className="mt-6 grid grid-cols-3 gap-4"
+              className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4"
             >
               <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
                 <i className="mb-2 text-xl text-green-600 fas fa-chart-line" />
@@ -1573,13 +1573,13 @@ export default function TradePage() {
             {/* Position summary card */}
             <div
               id="position-summary-card"
-              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+              className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm"
             >
               <h3 className="mb-4 text-lg font-bold text-gray-900">
                 Position Summary
               </h3>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <span className="text-sm text-gray-600">Option Type</span>
                   <span
                     id="summary-type"
@@ -1665,7 +1665,7 @@ export default function TradePage() {
             {/* Market stats */}
             <div
               id="market-stats-card"
-              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+              className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm"
             >
               {isLoadingMarketStats ? (
                 <div className="space-y-3">
@@ -1744,7 +1744,7 @@ export default function TradePage() {
             {/* Recent trades */}
             <div
               id="recent-trades-card"
-              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+              className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm"
             >
               {isLoadingRecentTrades ? (
                 <div className="space-y-3">
@@ -1774,7 +1774,7 @@ export default function TradePage() {
                         key={`${t.marketIndex}-${t.id}`}
                         className="flex items-center justify-between"
                       >
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span
                             className={`inline-flex w-14 justify-center rounded px-2 py-0.5 text-xs font-semibold ${
                               t.isCall
@@ -1813,7 +1813,7 @@ export default function TradePage() {
           id="education-section"
           className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3"
         >
-          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 transition hover:border-primary hover:shadow-md">
+          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 transition hover:border-primary hover:shadow-md">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-green-100">
               <i className="fas fa-arrow-trend-up text-xl text-green-600" />
             </div>
@@ -1826,7 +1826,7 @@ export default function TradePage() {
             </p>
           </div>
 
-          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 transition hover:border-primary hover:shadow-md">
+          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 transition hover:border-primary hover:shadow-md">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-red-100">
               <i className="fas fa-arrow-trend-down text-xl text-red-600" />
             </div>
@@ -1839,7 +1839,7 @@ export default function TradePage() {
             </p>
           </div>
 
-          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 transition hover:border-primary hover:shadow-md">
+          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 transition hover:border-primary hover:shadow-md">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100">
               <i className="fas fa-infinity text-xl text-purple-600" />
             </div>

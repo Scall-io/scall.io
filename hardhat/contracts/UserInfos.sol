@@ -48,7 +48,7 @@ contract UserInfos {
                 ID = IERC721x(ERC721_LpAddr).tokenOfOwnerByIndex(_lp, ii);
 
                 // Get rewards
-                rewards += IMarketPool(marketAddr).getRewards(ID, 0);
+                rewards += IMarketPool(marketAddr).getRewards(ID);
             }
             
         }
@@ -260,7 +260,6 @@ contract UserInfos {
         uint256 strike;
         uint256 amount;
         uint256 start;
-        uint256 lastClaim;
         bool isITM;
         uint256 value;
         uint256 withdrawableTokenA;
@@ -314,7 +313,6 @@ contract UserInfos {
                     strike: userLpInfos.strike,
                     amount: userLpInfos.amount,
                     start: userLpInfos.start,
-                    lastClaim: userLpInfos.lastClaim,
                     isITM: isITM,
                     value: value,
                     withdrawableTokenA: withdrawableTokenA,

@@ -99,12 +99,11 @@ contract CollateralPool {
     /// @notice Calculates the rewards for a liquidity provider after deducting fees.
     /// @param _index The market index.
     /// @param _id The ID of the user's position in the market.
-    /// @param _substractCount If the user want to claim until a specific period.
     /// @return The net rewards after fees (18 decimals).
-    function getRewardsForLp(uint256 _index, uint256 _id, uint256 _substractCount) external view returns(uint256) {
+    function getRewardsForLp(uint256 _index, uint256 _id) external view returns(uint256) {
 
         // Get infos
-        uint256 rewards = IMarketPool(IMain(_MAIN).getIdToMarket(_index)).getRewards(_id, _substractCount);
+        uint256 rewards = IMarketPool(IMain(_MAIN).getIdToMarket(_index)).getRewards(_id);
         uint256 fees = IMain(_MAIN).getFees();
         uint256 feeAmount;
 
@@ -161,7 +160,14 @@ contract CollateralPool {
     /// @notice Allows a user to deposit collateral into their account.
     /// @param _amount The amount of collateral to deposit.
     function depositCollateral(uint256 _amount) external {
+
+        // Transaction
+        uint256 balBefore = IERC20x(_COLLATERALTOKEN).balanceOf(address(this));
         IERC20x(_COLLATERALTOKEN).transferFrom(msg.sender, address(this), _amount);
+        uint256 balAfter = IERC20x(_COLLATERALTOKEN).balanceOf(address(this));
+        require(balAfter - balBefore == _amount, "Sent != Received");
+
+
         _userInfos[msg.sender].collateral += collateralTokenTo18(_amount);
 
         // Emit event for collateral deposit
@@ -188,19 +194,21 @@ contract CollateralPool {
         emit CollateralWithdrawn(msg.sender, _amount);
     }
 
-    /// @notice Allows a user to claim rewards for a position they own.
-    /// @param _index The market index.
-    /// @param _id The ID of the user's position.
-    /// @param _substractCount If the user want to claim until a specific period.
-    /// @return claimedRewards The reward amount received by the LP (token decimals).
-    function claimRewards(uint256 _index, uint256 _id, uint256 _substractCount) external returns(uint256) {
+    /// @notice Claims rewards for an LP position and transfers them to the position owner.
+    /// @dev Verifies that the caller is authorized (position owner / tx.origin owner / or the MarketPool as configured).
+    ///      Fetches rewards from MarketPool using an O(1) accumulator-based claim (`MarketPool.claimRewards`),
+    ///      applies protocol fees if configured, then transfers net rewards to the LP owner and fees to protocol owner.
+    /// @param _index The market index in Main used to resolve the MarketPool address.
+    /// @param _id The LP position NFT id.
+    /// @return claimedRewards The net rewards transferred to the LP owner (collateral token decimals).
+    function claimRewards(uint256 _index, uint256 _id) external returns(uint256) {
 
         // Allowed to claim ?
         address idOwner = IERC721x(IMarketPool(IMain(_MAIN).getIdToMarket(_index)).getERC721_LP()).ownerOf(_id);
         require(msg.sender == idOwner || tx.origin == idOwner || msg.sender == IMain(_MAIN).getIdToMarket(_index), "You are not allowed");
 
         // Get infos
-        uint256 rewards = IMarketPool(IMain(_MAIN).getIdToMarket(_index)).claimRewards(_id, _substractCount);
+        uint256 rewards = IMarketPool(IMain(_MAIN).getIdToMarket(_index)).claimRewards(_id);
         uint256 fees = IMain(_MAIN).getFees();
         uint256 feeAmount;
 
@@ -220,10 +228,13 @@ contract CollateralPool {
         return toCollateralTokenDecimals(rewards - feeAmount);
     }
 
-    /// @notice Liquidates a user's contract if they meet the liquidation criteria.
-    /// @param _index The market index.
-    /// @param _id The ID of the user's position.
-    /// @return The penalty amount awarded to the liquidator (18 decimals).
+    /// @notice Liquidates a user’s contract if the account is below the liquidation threshold.
+    /// @dev Applies the liquidation penalty to the user’s collateral and updates internal state before performing
+    ///      external interactions (CEI). Then calls MarketPool to settle/burn the contract and transfers the penalty
+    ///      to the liquidator.
+    /// @param _index The market index in Main used to resolve the MarketPool address.
+    /// @param _id The contract NFT id to liquidate.
+    /// @return penalty The penalty amount awarded to the liquidator (18 decimals).
     function liquidateContract(uint256 _index, uint256 _id) external returns(uint256) {
 
         // Get infos
@@ -237,12 +248,14 @@ contract CollateralPool {
         // Calcul penalty
         uint256 penalty = (balanceOf(user) * liqPen) / 1e18;
 
+        // State Update
+        _userInfos[user].collateral -= penalty;
+
         // Close Contract
-        IMarketPool(IMain(_MAIN).getIdToMarket(_index)).liquidateContract(_id);
+        IMarketPool(IMain(_MAIN).getIdToMarket(_index)).liquidateContract(_id, msg.sender);
 
         // Send rewards to liquidator
         IERC20x(_COLLATERALTOKEN).transfer(msg.sender, toCollateralTokenDecimals(penalty));
-        _userInfos[user].collateral -= penalty;
 
         // Emit event for contract liquidation
         emit ContractLiquidated(msg.sender, user, toCollateralTokenDecimals(penalty));

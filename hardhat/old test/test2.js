@@ -222,6 +222,11 @@ describe("Scall", function () {
     it("should change block and timestamp", async function () {
       await networkHelpers.mine(259200);
       console.log("...3 days");
+
+      await fakeBtcOracle.write.setPrice(
+        [52800n * 10n ** 8n],
+        { account: owner.account }
+      );
     });
 
     it("Should deposit collateral for addr2", async function () {
@@ -263,249 +268,40 @@ describe("Scall", function () {
   describe("Time :: Change", function () {
 
     it("should change block and timestamp", async function () {
-      await networkHelpers.mine(259200);
-      console.log("...3 days");
-    });
+      await networkHelpers.mine(1814400);
+      console.log("...21 days");
 
-  });
-
-  describe("Oracles :: Prices moove", function () {
-
-    it("should moove the prices", async function () {
-      await fakeBtcOracle.write.setPrice(
-        [57800n * 10n ** 8n],
-        { account: owner.account }
-      );
-
-      const tx = await marketPool.read.getPrice();
-      console.log("Current price :", Number(tx / 10n ** 18n));
-    });
-
-  });
-
-  describe("LPs :: Check", function () {
-
-    it("Should give market's owner call LP infos", async function () {
-      let tx = await marketPool.read.getLpInfos(
-        [0n]
-      );
-      console.log(tx);
-    });
-
-    it("Should claim fees for owner call", async function () {
-
-      let tx = await collateralPool.read.getRewardsForLp([0n, 0n, 0n]);
-      console.log("rewards for owner call :", Number(tx / 10n ** 18n));
-
-      rewardsClaimed += tx;
-
-      let balanceAV = await fakeUSDC.read.balanceOf([owner.account.address]);
-
-      await collateralPool.write.claimRewards(
-        [0n, 0n, 0n],
-        { account: owner.account }
-      );
-
-      let balanceAP = await fakeUSDC.read.balanceOf([owner.account.address]);
-      console.log(
-        "Owner claimed USDC:",
-        Number((balanceAP - balanceAV) / 10n ** 6n)
-      );
-    });
-
-  });
-
-  describe("MAIN :: Edit Market infos", function () {
-
-    it("Should edit market infos", async function () {
-
-      let tx = await main.read.getMarketId([marketPool.address]);
-
-      let market = await main.read.getIdToMarketInfos([tx]);
-      console.log("Before update:", market);
-
-      await main.write.updateMarket([marketPool.address, fakeBtcOracle.address, 8n, 8n, 500n * 10n ** 18n], { account: owner.account });
-      
-      market = await main.read.getIdToMarketInfos([tx]);
-      console.log("After update:", market);
-
-    });
-
-  });
-
-  describe("Oracles :: Prices moove", function () {
-
-    it("should moove the prices", async function () {
       await fakeBtcOracle.write.setPrice(
         [52800n * 10n ** 8n],
         { account: owner.account }
-      );
-
-      const tx = await marketPool.read.getPrice();
-      console.log("Current price :", Number(tx / 10n ** 18n));
-    });
+      ); 
+    });       
 
   });
-
-  describe("LPs :: Check", function () {
-
-    it("Should deposit call LP at correct interval for Owner", async function () {
-      // READ intervals
-      let intervals = await marketPool.read.getIntervals([]);
-      console.log("Intervals:", intervals);
-
-      const strikeValue = 52000n * 10n ** 18n;
-
-      // READ strike info
-      let strikeInfo = await marketPool.read.getStrikeInfos([strikeValue]);
-      console.log("Before deposit (owner):", strikeInfo);
-
-      // WRITE deposit
-      await marketPool.write.deposit(
-        [false, 0n, 52000n * 10n ** 6n],     // [isCall, index, amount]
-        { account: owner.account }
-      );
-
-      // READ again
-      strikeInfo = await marketPool.read.getStrikeInfos([strikeValue]);
-      console.log("After deposit (owner):", strikeInfo);
-
-    });
-
-  });
-
-  describe("Trades :: Check", function () {
-
-    it("Should deposit collateral for addr1", async function () {
-      let userInfo = await collateralPool.read.getUserInfos([addr1.account.address]);
-      console.log("UserInfos Before (addr1):", userInfo);
-
-      await collateralPool.write.depositCollateral(
-        [1500n * 10n ** 6n],          // 1500e6
-        { account: addr1.account }
-      );
-
-      userInfo = await collateralPool.read.getUserInfos([addr1.account.address]);
-      console.log("UserInfos After (addr1):", userInfo);
-    });
-
-    it("Should open a trade for addr1", async function () {
-      const strikeValue = 52000n * 10n ** 18n;  // 55000 * 1e18
-
-      let strikeInfo = await marketPool.read.getStrikeInfos([strikeValue]);
-      console.log("StrikeInfos Before:", strikeInfo);
-
-      await marketPool.write.openContract(
-        [false, 0, 20000n * 10n ** 6n],       // true, 2e8
-        { account: addr1.account }
-      );
-
-      strikeInfo = await marketPool.read.getStrikeInfos([strikeValue]);
-      console.log("StrikeInfos After:", strikeInfo);
-
-      const userInfo = await collateralPool.read.getUserInfos([addr1.account.address]);
-      console.log("UserInfos After (addr1):", userInfo);
-    });
-
-    it("should change block and timestamp", async function () {
-      await networkHelpers.mine(259200);
-      console.log("...3 days");
-    });
-
-    it("Should deposit collateral for addr2", async function () {
-      let userInfo = await collateralPool.read.getUserInfos([addr2.account.address]);
-      console.log("UserInfos Before (addr2):", userInfo);
-
-      await collateralPool.write.depositCollateral(
-        [1500n * 10n ** 6n],          // 1500e6
-        { account: addr2.account }
-      );
-
-      userInfo = await collateralPool.read.getUserInfos([addr2.account.address]);
-      console.log("UserInfos After (addr2):", userInfo);
-    });
-
-    it("Should open a trade for addr2", async function () {
-      const strikeValue = 52000n * 10n ** 18n;  // 52000 * 1e18
-
-      let strikeInfo = await marketPool.read.getStrikeInfos([strikeValue]);
-      console.log("StrikeInfos Before:", strikeInfo);
-
-      await marketPool.write.openContract(
-        [false, 0n, 10000n * 10n ** 6n],       // true, 1e8
-        { account: addr2.account }
-      );
-
-      strikeInfo = await marketPool.read.getStrikeInfos([strikeValue]);
-      console.log("StrikeInfos After:", strikeInfo);
-
-      const userInfo = await collateralPool.read.getUserInfos([addr2.account.address]);
-      console.log("UserInfos After (addr2):", userInfo);
-    });
-
-  });
-
+  
   //
-  // TIME
+  // TRADER INFOS
   //
-  describe("Time :: Change", function () {
+  describe("Trader infos", function () {
 
-    it("should change block and timestamp", async function () {
-      await networkHelpers.mine(259200);
-      console.log("...3 days");
+    it("should give trader infos", async function () {
+      const x = await collateralPool.read.getUserInfos([addr1.account.address]);
+      console.log("UserInfos:", x);
     });
 
-  });
-
-  describe("Oracles :: Prices moove", function () {
-
-    it("should moove the prices", async function () {
-      await fakeBtcOracle.write.setPrice(
-        [51800n * 10n ** 8n],
-        { account: owner.account }
-      );
-
-      const tx = await marketPool.read.getPrice();
-      console.log("Current price :", Number(tx / 10n ** 18n));
+    it("should give trader balance", async function () {
+      const x = await collateralPool.read.balanceOf([addr1.account.address]);
+      console.log("Balance:", x / 10n ** 18n);
     });
 
-  });
-
-  describe("LPs :: Check", function () {
-
-    it("Should give market's owner call LP infos", async function () {
-      let tx = await marketPool.read.getLpInfos(
-        [1n]
-      );
-      console.log(tx);
+    it("should say if need liquidation", async function () {
+      const x = await collateralPool.read.needLiquidation([addr1.account.address]);
+      console.log("Need Liquidation :", x);
     });
 
-    it("Should claim fees for owner call", async function () {
-
-      let tx = await collateralPool.read.getRewardsForLp([0n, 1n, 1n]);
-      console.log("rewards for owner call :", Number(tx / 10n ** 18n));
-
-      rewardsClaimed += tx;
-
-      let balanceAV = await fakeUSDC.read.balanceOf([owner.account.address]);
-
-      await collateralPool.write.claimRewards(
-        [0n, 1n, 1n],
-        { account: owner.account }
-      );
-
-      let balanceAP = await fakeUSDC.read.balanceOf([owner.account.address]);
-      console.log(
-        "Owner claimed USDC:",
-        Number((balanceAP - balanceAV) / 10n ** 6n)
-      );
-    });
-
-    it("Should give Markets Active Strikes", async function () {
-
-      let tx = await protocolInfos.read.getMarketsAvlLiquidity([0n]);
-      console.log(tx);
-
+    it("should liquidate the user", async function () {
+      const x = await collateralPool.read.liquidateContract([0,0]);
+      console.log("Need Liquidation :", x);
     });
 
   });

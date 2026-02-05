@@ -707,7 +707,7 @@ export default function HomePage() {
   };
 
   return (
-    <div id="home-page" className="pt-18 bg-light text-gray-900 relative">
+    <div id="home-page" className="pt-16 md:pt-20 bg-light text-gray-900 relative">
       {/* --- Modals --- */}
       {toast && (
         <Toast
@@ -728,55 +728,52 @@ export default function HomePage() {
       {/* HERO */}
       <section
         id="hero-section"
-        className="h-[600px] bg-gradient-to-br from-primary/10 via-secondary/5 to-light relative overflow-hidden"
+        className="min-h-[520px] md:min-h-[600px] bg-gradient-to-br from-primary/10 via-secondary/5 to-light relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-        <div className="max-w-7xl mx-auto px-6 h-full flex items-center">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
-            <div className="space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center py-12 md:py-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center w-full">
+            <div className="space-y-5 md:space-y-6">
               <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-200">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span className="text-sm font-medium text-gray-700">
                   Perpetual Options Protocol
                 </span>
               </div>
-              <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
                 Trade Options{" "}
                 <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   Without Expiration
                 </span>
               </h1>
-              <p className="text-xl text-gray-600 leading-relaxed">
-                Open perpetual call and put positions on BTC and ETH. Pay only
-                weekly rent. No expiration dates. Unlimited profit potential.
+              <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed">
+                Open perpetual call and put positions on BTC and ETH. Pay continuously, per second. No expiration dates. Unlimited profit potential.
               </p>
-              <div className="flex items-center space-x-4 pt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pt-2 sm:pt-4">
                 <Link
                   href={`/${locale}/trade`}
-                  className="relative inline-flex items-center justify-center bg-gradient-to-r from-primary to-secondary px-8 py-4 rounded-xl font-bold text-white shadow-lg hover:shadow-2xl hover:shadow-primary/60 transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
+                  className="w-full sm:w-auto relative inline-flex items-center justify-center bg-gradient-to-r from-primary to-secondary px-8 py-4 rounded-xl font-bold text-white shadow-lg hover:shadow-2xl hover:shadow-primary/60 transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
                 >
                   Start Trading
                 </Link>
                 <Link
                   href={`/${locale}/how-it-works`}
-                  className="relative inline-flex items-center justify-center bg-white border border-gray-300 px-8 py-4 rounded-xl font-semibold text-gray-900 hover:border-primary hover:shadow-lg transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
+                  className="w-full sm:w-auto relative inline-flex items-center justify-center bg-white border border-gray-300 px-8 py-4 rounded-xl font-semibold text-gray-900 hover:border-primary hover:shadow-lg transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
                 >
                   Learn More
                 </Link>
               </div>
-              <div className="flex items-center space-x-8 pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-4 sm:pt-6">
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">$3.5M</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">$3.5M</p>
                   <p className="text-sm text-gray-600">Total Volume</p>
                 </div>
-                <div className="w-px h-12 bg-gray-300" />
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">$1.2M</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">$1.2M</p>
                   <p className="text-sm text-gray-600">Liquidity</p>
                 </div>
-                <div className="w-px h-12 bg-gray-300" />
                 <div>
-                  <p className="text-3xl font-bold text-green-600">18.5%</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-green-600">18.5%</p>
                   <p className="text-sm text-gray-600">Avg. APR</p>
                 </div>
               </div>
@@ -862,13 +859,13 @@ export default function HomePage() {
       </section>
 
       {/* FEATURES */}
-      <section id="features-section" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-gray-900">
+      <section id="features-section" className="py-12 md:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 md:mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-900">
               Why Choose Scall.io?
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600">
               The most advanced perpetual options protocol in DeFi
             </p>
           </div>
@@ -884,8 +881,7 @@ export default function HomePage() {
                 No Expiration
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Keep your positions open as long as you want. Pay only weekly
-                rent. Close anytime without penalties.
+                Keep your positions open as long as you want. Pay continuously, per second. Close anytime without penalties.
               </p>
             </div>
             <div
@@ -929,7 +925,7 @@ export default function HomePage() {
                 Earn as LP
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Provide liquidity and earn weekly rent from traders. Average APR
+                Provide liquidity and earn per-second fees from traders. Average APR
                 of 18.5% with auto-compound.
               </p>
             </div>
@@ -970,23 +966,23 @@ export default function HomePage() {
       {/* TRADE WIDGET */}
       <section
         id="trade-widget"
-        className="py-20 bg-gradient-to-br from-gray-50 to-white"
+        className="py-12 md:py-20 bg-gradient-to-br from-gray-50 to-white"
       >
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4 text-gray-900">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 md:mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-900">
               Start Trading Now
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600">
               Open your first perpetual option position in seconds
             </p>
           </div>
 
           <div
             id="trading-card-home"
-            className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg"
+            className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg"
           >
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8">
               <div>
                 <h3 className="text-2xl font-bold mb-2 text-gray-900">
                   Trade Options
@@ -1331,7 +1327,7 @@ export default function HomePage() {
             </button>
 
             {/* Info cards */}
-            <div id="info-cards-home" className="grid grid-cols-3 gap-4 mt-6">
+            <div id="info-cards-home" className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                 <i className="fas fa-chart-line text-green-600 text-xl mb-2" />
                 <p className="text-xs text-gray-600 mb-1">Potential Profit</p>
@@ -1343,7 +1339,7 @@ export default function HomePage() {
                 <i className="fas fa-shield-halved text-red-600 text-xl mb-2" />
                 <p className="text-xs text-gray-600 mb-1">Max Loss</p>
                 <p className="text-sm font-semibold text-red-700">
-                  Weekly Rent
+                  Per-second Fees
                 </p>
               </div>
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
@@ -1359,13 +1355,13 @@ export default function HomePage() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how-it-works-section" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-gray-900">
+      <section id="how-it-works-section" className="py-12 md:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 md:mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-900">
               How It Works
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600">
               Three simple steps to start trading perpetual options
             </p>
           </div>
@@ -1413,14 +1409,14 @@ export default function HomePage() {
       {/* FAQ */}
       <section
         id="faq-section"
-        className="py-20 bg-gradient-to-br from-gray-50 to-white"
+        className="py-12 md:py-20 bg-gradient-to-br from-gray-50 to-white"
       >
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-gray-900">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 md:mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-900">
               Frequently Asked Questions
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600">
               Everything you need to know about perpetual options
             </p>
           </div>
@@ -1435,7 +1431,7 @@ export default function HomePage() {
                   setOpenFaq(openFaq === 1 ? null : 1)
                 }
               >
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                   What are perpetual options?
                 </h3>
                 <i
@@ -1464,7 +1460,7 @@ export default function HomePage() {
                   setOpenFaq(openFaq === 2 ? null : 2)
                 }
               >
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                   How does the rent work?
                 </h3>
                 <i
@@ -1494,7 +1490,7 @@ export default function HomePage() {
                   setOpenFaq(openFaq === 3 ? null : 3)
                 }
               >
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                   What happens if I run out of collateral?
                 </h3>
                 <i
@@ -1524,7 +1520,7 @@ export default function HomePage() {
                   setOpenFaq(openFaq === 4 ? null : 4)
                 }
               >
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                   How do I earn as a liquidity provider?
                 </h3>
                 <i
@@ -1553,7 +1549,7 @@ export default function HomePage() {
                   setOpenFaq(openFaq === 5 ? null : 5)
                 }
               >
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                   What assets can I trade options on?
                 </h3>
                 <i
@@ -1577,13 +1573,13 @@ export default function HomePage() {
       {/* STATS */}
       <section
         id="stats-section"
-        className="py-20 bg-gradient-to-br from-primary/5 to-secondary/5"
+        className="py-12 md:py-20 bg-gradient-to-br from-primary/5 to-secondary/5"
       >
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div
               id="stat-1"
-              className="bg-white border border-gray-200 rounded-2xl p-8 text-center"
+              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 text-center"
             >
               <p className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
                 $156M
@@ -1592,7 +1588,7 @@ export default function HomePage() {
             </div>
             <div
               id="stat-2"
-              className="bg-white border border-gray-200 rounded-2xl p-8 text-center"
+              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 text-center"
             >
               <p className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
                 $89M
@@ -1601,7 +1597,7 @@ export default function HomePage() {
             </div>
             <div
               id="stat-3"
-              className="bg-white border border-gray-200 rounded-2xl p-8 text-center"
+              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 text-center"
             >
               <p className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
                 18.5%
@@ -1610,7 +1606,7 @@ export default function HomePage() {
             </div>
             <div
               id="stat-4"
-              className="bg-white border border-gray-200 rounded-2xl p-8 text-center"
+              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 text-center"
             >
               <p className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
                 12K+
@@ -1622,24 +1618,24 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section id="cta-section" className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-4xl font-bold mb-6 text-gray-900">
+      <section id="cta-section" className="py-12 md:py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 md:mb-6 text-gray-900">
             Ready to Start Trading?
           </h2>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-6 md:mb-8">
             Join thousands of traders using perpetual options on Scall.io
           </p>
-          <div className="flex items-center justify-center space-x-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               href={`/${locale}/trade`}
-              className="bg-gradient-to-r from-primary to-secondary px-10 py-4 rounded-xl font-bold text-lg text-white hover:shadow-xl hover:shadow-primary/50 transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
+              className="w-full sm:w-auto bg-gradient-to-r from-primary to-secondary px-10 py-4 rounded-xl font-bold text-lg text-white hover:shadow-xl hover:shadow-primary/50 transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
             >
               Start Trading Now
             </Link>
             <a
               href={`/${locale}/how-it-works`}
-              className="bg-white border-2 border-gray-300 px-10 py-4 rounded-xl font-bold text-lg text-gray-900 hover:border-primary hover:shadow-lg transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
+              className="w-full sm:w-auto bg-white border-2 border-gray-300 px-10 py-4 rounded-xl font-bold text-lg text-gray-900 hover:border-primary hover:shadow-lg transition-transform transition-shadow duration-200 hover:-translate-y-0.5 cursor-pointer"
             >
               View Documentation
             </a>

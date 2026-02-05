@@ -124,6 +124,7 @@ contract Main is Ownable {
         address priceFeed;
         uint256 intervalLength;
         uint256 range;
+        uint256 maxPriceStaleness;
         uint256 yield;     
     }
 
@@ -175,6 +176,7 @@ contract Main is Ownable {
             market.getPriceFeed(),
             market.getIntervalLength(),
             market.getRange(),
+            market.getMaxPriceStaleness(),
             market.getYield()
         );
         _idToMarketInfos[_marketCount] = newMarket;
@@ -193,10 +195,11 @@ contract Main is Ownable {
     /// @param _priceFeedDecimal Decimal precision of the price feed
     /// @param _intervalLength New intervalLength value for the market
     /// @param _range New range value for the market
-    function updateMarket(address _contractAddress, address _priceFeed, uint256 _priceFeedDecimal, uint256 _intervalLength, uint256 _range) external onlyOwner() {
+    function updateMarket(address _contractAddress, address _priceFeed, uint256 _priceFeedDecimal, uint256 _intervalLength, uint256 _range, uint256 _maxPriceStaleness) external onlyOwner() {
         IMarketPool(_contractAddress).setPriceFeed(_priceFeed, _priceFeedDecimal);
         IMarketPool(_contractAddress).setRange(_range);
         IMarketPool(_contractAddress).setIntervalLength(_intervalLength);
+        IMarketPool(_contractAddress).setMaxPriceStaleness(_maxPriceStaleness);
 
         marketInfos memory newMarketInfos = marketInfos(
             _contractAddress,
@@ -205,6 +208,7 @@ contract Main is Ownable {
             _priceFeed,
             _intervalLength,
             _range,
+            _maxPriceStaleness,
             _idToMarketInfos[_addressToId[_contractAddress]].yield
         );
         _idToMarketInfos[_addressToId[_contractAddress]] = newMarketInfos;

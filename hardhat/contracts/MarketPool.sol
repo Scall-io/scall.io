@@ -40,6 +40,7 @@ contract MarketPool {
     uint256 private _INTERVALLENGTH;
     uint256 private _RANGE;
     uint256 private _YIELD;
+    uint256 private _MAX_PRICE_STALENESS;
 
     /// @notice Initializes the MarketPool contract with the provided parameters and deploys two ERC721 contracts for options and liquidity positions.
     /// @param _main Address of the main contract governing the market pool.
@@ -67,19 +68,21 @@ contract MarketPool {
         _INTERVALLENGTH = _intervalLength;
         _RANGE = _range;
         _YIELD = _yield;
+        _MAX_PRICE_STALENESS = 3600;
     }
 
     ////////////////////////////////////////////////////////////////// SET UP //////////////////////////////////////////////////////////////////
 
     struct StrikeInfos {
-        uint256 callLP;
-        uint256 callLU;
-        uint256 callLR;
+        uint256 callLP; // Liquidity provided
+        uint256 callLU; // Liquidity under use
+        uint256 callLR; // Liquidity returned (amount in oposite token) represent the amount exchanged after ITM contract executed (still counted in callLP)
         uint256 putLP;
         uint256 putLU;
         uint256 putLR;
-        uint256 updateCount; // strike state index
-        uint256 updated; // start timestamp of this strike state
+        uint256 accCallPerShare; // Accumulated reward per Share since inseption
+        uint256 accPutPerShare;
+        uint256 lastUpdate; // start timestamp of this strike state
     }  
 
     struct LpInfos {
@@ -87,7 +90,7 @@ contract MarketPool {
         uint256 strike;
         uint256 amount;
         uint256 start;
-        uint256 lastClaim;
+        uint256 rewardDebt;
     }  
 
     struct ContractInfos {
@@ -101,22 +104,6 @@ contract MarketPool {
     mapping(uint256 => LpInfos) private _lpIdToInfos;
     mapping(uint256 => ContractInfos) private _contractIdToInfos;
     mapping(uint256 => StrikeInfos) private _strikeToInfos;
-    mapping(uint256 => mapping(uint256 => StrikeInfos)) private _strikeHistory;
-
-    // Helper for GetRewards Function
-    struct RewardsCtx {
-        LpInfos lp;
-        StrikeInfos strike;
-        StrikeInfos strikeCount;
-        StrikeInfos olderStrikeCount;
-        uint256 currentTime;
-        uint256 requestedCount;
-        uint256 newClaim;
-        uint256 rewardsPerStrike;
-        uint256 userShare;
-        uint256 timeSpent;
-        uint256 rewards;
-    }
 
     ////////////////////////////////////////////////////////////////// BASE FUNCTIONS //////////////////////////////////////////////////////////////////
 
@@ -174,6 +161,12 @@ contract MarketPool {
         return _YIELD;
     }
 
+    /// @notice Returns chainlink's max price staleness
+    /// @return The max price staleness
+    function getMaxPriceStaleness() external view returns(uint256) {
+        return _MAX_PRICE_STALENESS;
+    }
+
     /// @notice Retrieves the details of a specific contract by ID
     /// @param _id The ID of the contract
     /// @return ContractInfos struct containing contract details
@@ -193,14 +186,6 @@ contract MarketPool {
     /// @return StrikeInfos struct containing strike information
     function getStrikeInfos(uint256 _strike) external view returns(StrikeInfos memory) {
         return _strikeToInfos[_strike];
-    }
-
-    /// @notice Retrieves historical information for a specific strike and period index
-    /// @param _strike The strike price for which history is requested
-    /// @param _index The period index
-    /// @return StrikeInfos struct containing historical data
-    function getStrikeHistory(uint256 _strike, uint256 _index) external view returns(StrikeInfos memory) {
-        return _strikeHistory[_strike][_index];
     }
 
     /// @notice Updates the price feed and decimal values
@@ -228,6 +213,14 @@ contract MarketPool {
     function setRange(uint256 _range) external {
         require(msg.sender == _MAIN, "You are not allowed");
         _RANGE = _range;
+    }
+
+    /// @notice Updates Chainlink's max price staleness
+    /// @dev Can only be called by the main contract
+    /// @param _maxPriceStaleness The new max price staleness
+    function setMaxPriceStaleness(uint256 _maxPriceStaleness) external {
+        require(msg.sender == _MAIN, "You are not allowed");
+        _MAX_PRICE_STALENESS = _maxPriceStaleness;
     }
 
     ////////////////////////////////////////////////////////////////// INTERNAL //////////////////////////////////////////////////////////////////
@@ -260,13 +253,55 @@ contract MarketPool {
         return (_amount * 10**_TOKENB_DECIMALS)/1e18;
     }
 
+    /// @notice Updates the cumulative reward-per-share accumulators for a given strike.
+    /// @dev This function implements an O(1) accumulator model (MasterChef-style).
+    ///      It accrues rewards since the last update based on elapsed time, current utilization,
+    ///      and total liquidity provided at the strike, then increases:
+    ///      - accCallPerShare when callLP > 0
+    ///      - accPutPerShare when putLP  > 0
+    ///      If liquidity is zero, the corresponding accumulator is not increased.
+    ///      This function must be called before any change to strike-level state (LP/LU) to keep accounting correct.
+    /// @param _strike The strike price (18 decimals) identifying the strike bucket to update.
+    function _updateStrike(uint256 _strike) private {
+        StrikeInfos storage s = _strikeToInfos[_strike];
+        uint256 dt = block.timestamp - s.lastUpdate;
+        if (dt == 0) return;
+
+        // Call accumulator
+        if (s.callLP > 0) {
+            uint256 rewardsPerYear =
+                (((s.callLU * _strike) / 1e18) * _YIELD) / 1e18;
+            uint256 rewards = (rewardsPerYear * dt) / 31536000; // 18 decimals
+            s.accCallPerShare += (rewards * 1e18) / s.callLP;
+        }
+
+        // Put accumulator
+        if (s.putLP > 0) {
+            uint256 rewardsPerYear = (s.putLU * _YIELD) / 1e18;
+            uint256 rewards = (rewardsPerYear * dt) / 31536000;
+            s.accPutPerShare += (rewards * 1e18) / s.putLP;
+        }
+
+        s.lastUpdate = block.timestamp;
+    }
+
     ////////////////////////////////////////////////////////////////// GET FUNCTIONS //////////////////////////////////////////////////////////////////
 
     /// @notice Fetches the current price of the underlying asset from the Chainlink price feed.
     /// @return The current price of the asset, adjusted to a standard 18 decimal format.
     function getPrice() public view returns(uint256) {
-        (, int result,,,) = IChainlink(_PRICEFEED).latestRoundData();
-        return uint256(result) * (1e18/10**_PRICEFEED_DECIMAL);
+        (
+            uint80 roundId,
+            int256 answer,
+            ,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        ) = IChainlink(_PRICEFEED).latestRoundData();
+
+        require(answeredInRound >= roundId, "Stale oracle round");
+        require(block.timestamp - updatedAt <= _MAX_PRICE_STALENESS, "Oracle price stale");
+        
+        return uint256(answer) * (1e18/10**_PRICEFEED_DECIMAL);
     }
 
     /// @notice Returns the interval range around the current price based on a defined range value.
@@ -281,12 +316,21 @@ contract MarketPool {
         uint256 upperBound = lowerBound + _RANGE;
 
         uint256[] memory intervals = new uint256[](_INTERVALLENGTH);
+        uint256 last = lowerBound;
 
         uint256 halfLength = _INTERVALLENGTH / 2;
 
         // Fill the first half with lower bounds
         for (uint256 i = 0; i < halfLength; i++) {
-            intervals[i] = lowerBound - _RANGE * (i + 1);
+
+            // Security in case RANGE*i > Price
+            if (lowerBound > _RANGE * (i + 1)) {
+                intervals[i] = lowerBound - _RANGE * (i + 1);
+                last = intervals[i];
+            } else {
+                intervals[i] = last;
+            }
+            
         }
 
         // Fill the second half with upper bounds
@@ -297,85 +341,68 @@ contract MarketPool {
         return intervals;
     }
 
-    /// @notice Calculates and returns the accumulated rewards for a specified liquidity position.
-    /// @dev Iterates through historical strike data to calculate the reward based on the user's share, type of position (call or put), and time spent in each period since the last claim.
-    /// @param _id The unique ID of the liquidity position for which rewards are calculated.
-    /// @return rewards The total calculated rewards for the specified liquidity position (18 decimals).
-    function getRewards(uint256 _id, uint256 _substractCount) public view returns(uint256, uint256) {
-        RewardsCtx memory ctx;
+    /// @notice Returns the pending rewards for a given LP position.
+    /// @dev Computes pending rewards in O(1) using a cumulative reward-per-share accumulator.
+    ///      The function reads the current accumulator for the position’s strike and simulates the
+    ///      additional accumulator increment that would be applied by `_updateStrike()` based on
+    ///      elapsed time since the strike’s last update. No state is modified.
+    ///      Pending rewards = (amount * accPerShare / 1e18) - rewardDebt.
+    /// @param _id The LP position NFT id.
+    /// @return rewards The pending rewards for this position (18 decimals).
+    function getRewards(uint256 _id) public view returns(uint256) {
 
-        // Get Infos
-        ctx.lp = _lpIdToInfos[_id];
-        ctx.strike = _strikeToInfos[ctx.lp.strike];
-        ctx.currentTime = block.timestamp;
+        // Get infos
+        LpInfos memory thisLP = _lpIdToInfos[_id];
 
-        // Check NewClaim Timestamp
-        if(_substractCount > 0) {
-            require(_substractCount <= ctx.strike.updateCount, "Invalid subtract count");
-            ctx.requestedCount = ctx.strike.updateCount - _substractCount;
-            ctx.newClaim = _strikeHistory[ctx.lp.strike][ctx.requestedCount].updated;
-            require(ctx.newClaim > ctx.lp.lastClaim, "Requested date too old");
-        } else {
-            ctx.requestedCount = ctx.strike.updateCount;
-            ctx.newClaim = ctx.currentTime;
-        }
+        uint256 acc = thisLP.isCall ? _strikeToInfos[thisLP.strike].accCallPerShare : _strikeToInfos[thisLP.strike].accPutPerShare;
 
-        // For all history index
-        for(uint256 i = ctx.requestedCount - 1; i >= 0  ; i--) {
-            ctx.strikeCount = _strikeHistory[ctx.lp.strike][i];
+        // Simulate the missing accumulator update since lastUpdate (view-only)
+        uint256 dt = block.timestamp - _strikeToInfos[thisLP.strike].lastUpdate;
+        uint256 rewardsPerYear;
+        uint256 rewardsForDt;
+        uint256 extraPerShare;
+        if (dt > 0) {
+            if (thisLP.isCall) {
+               
+                if (_strikeToInfos[thisLP.strike].callLP > 0) {
 
-            // if it's not the last period
-            if(ctx.lp.lastClaim < ctx.strikeCount.updated) {
+                    rewardsPerYear = (((_strikeToInfos[thisLP.strike].callLU * thisLP.strike) / 1e18) * _YIELD) / 1e18;
+                    rewardsForDt = (rewardsPerYear * dt) / 31536000;
+                    extraPerShare = (rewardsForDt * 1e18) / _strikeToInfos[thisLP.strike].callLP;
 
-                // if it's the first index
-                if(i == ctx.strike.updateCount - 1) {
-                    ctx.timeSpent = ctx.currentTime - ctx.strikeCount.updated;
-                } else {
-                    ctx.olderStrikeCount = _strikeHistory[ctx.lp.strike][i+1];
-                    ctx.timeSpent = ctx.olderStrikeCount.updated - ctx.strikeCount.updated;
+                    acc += extraPerShare;
                 }
-
-            } else /* if it's the last period */ {
-
-                // if it's the first index
-                if(i == ctx.strike.updateCount - 1) {
-                    ctx.timeSpent = ctx.currentTime - ctx.lp.lastClaim;
-                } else {
-                    ctx.olderStrikeCount = _strikeHistory[ctx.lp.strike][i+1];
-                    ctx.timeSpent = ctx.olderStrikeCount.updated - ctx.lp.lastClaim;
-                }
-
-            }            
-
-            // Call or Put ?
-            if (ctx.lp.isCall) {
-                ctx.rewardsPerStrike = ((((ctx.strikeCount.callLU * ctx.lp.strike)/1e18) * _YIELD)/1e18)/31536000 * ctx.timeSpent;
-                ctx.userShare = ((ctx.lp.amount * 1e18) / ctx.strikeCount.callLP);
             } else {
-                ctx.rewardsPerStrike = ((ctx.strikeCount.putLU * _YIELD)/1e18)/31536000 * ctx.timeSpent;
-                ctx.userShare = ((ctx.lp.amount * 1e18) / ctx.strikeCount.putLP);
-            }
 
-            // Calcul Rewards
-            ctx.rewards += (ctx.userShare * ctx.rewardsPerStrike) / 1e18;
+                if (_strikeToInfos[thisLP.strike].putLP > 0) {
 
-            // Break if it's the last period
-            if(ctx.lp.lastClaim >= ctx.strikeCount.updated) {
-                break;
+                    rewardsPerYear = (_strikeToInfos[thisLP.strike].putLU * _YIELD) / 1e18;
+                    rewardsForDt = (rewardsPerYear * dt) / 31536000;
+                    extraPerShare = (rewardsForDt * 1e18) / _strikeToInfos[thisLP.strike].putLP;
+
+                    acc += extraPerShare;
+                }
             }
         }
 
-        return (ctx.rewards, ctx.newClaim);
+        uint256 accumulated = (thisLP.amount * acc) / 1e18;
+        uint256 rewards = accumulated - thisLP.rewardDebt;
+        
+        return (rewards);
     }
 
     ////////////////////////////////////////////////////////////////// USERS FUNCTIONS //////////////////////////////////////////////////////////////////
 
-    /// @notice Allows a user to deposit assets and open an LP position
-    /// @dev Mints an NFT for the LP position and updates liquidity information
-    /// @param _isCall Specifies if the option is a call or a put
-    /// @param _strikeIndex The strike Index from getIntervals()
-    /// @param _amount The amount of assets to deposit (token decimal)
-    /// @return _lpCount - 1 The unique ID assigned to the newly created LP position.
+    /// @notice Deposits liquidity into a strike bucket and mints an LP position NFT.
+    /// @dev Uses cumulative reward-per-share accounting.
+    ///      Calls `_updateStrike(strike)` before modifying strike totals to ensure the accumulator
+    ///      reflects rewards up to the current timestamp.
+    ///      The new position’s `rewardDebt` is initialized using the updated accumulator so the depositor
+    ///      cannot claim rewards accrued before the deposit.
+    /// @param _isCall True to deposit Token A (call side), false to deposit Token B (put side).
+    /// @param _strikeIndex Index returned by `getIntervals()` selecting the strike bucket.
+    /// @param _amount Amount of tokens deposited (token decimals).
+    /// @return lpId The newly minted LP position NFT id.
     function deposit(bool _isCall, uint256 _strikeIndex, uint256 _amount) external returns(uint256) {
         require(_amount > 1e2, "_amount too low");
         require(_strikeIndex < _INTERVALLENGTH / 2, "Wrong Strike Index");
@@ -384,29 +411,50 @@ contract MarketPool {
         uint256[] memory interval = getIntervals();
 
         // Transfer token, get Strike and update strike Infos
+        uint256 balBefore;
+        uint256 balAfter;
         uint256 strike;
         uint256 amount;
         if (_isCall) {
+
+            // Transaction
+            balBefore = IERC20x(_TOKENA).balanceOf(address(this));
             IERC20x(_TOKENA).transferFrom(msg.sender, address(this), _amount);
+            balAfter = IERC20x(_TOKENA).balanceOf(address(this));
+
             strike = interval[(_INTERVALLENGTH / 2) + _strikeIndex];
             amount = tokenATo18(_amount);
-            _strikeToInfos[strike].callLP += amount;
+            
         } else {
+
+            // Transaction
+            balBefore = IERC20x(_TOKENB).balanceOf(address(this));
             IERC20x(_TOKENB).transferFrom(msg.sender, address(this), _amount);
+            balAfter = IERC20x(_TOKENB).balanceOf(address(this));
+
             strike = interval[_strikeIndex];
             amount = tokenBTo18(_amount);
+        }
+
+        require(balAfter - balBefore == _amount, "Sent != Received");
+
+        // Strike Update
+        _updateStrike(strike);        
+
+        // Read acc and Update Liquidity after security checks
+        uint256 acc;
+        if (_isCall == true) {
+            acc = _strikeToInfos[strike].accCallPerShare;
+            _strikeToInfos[strike].callLP += amount;
+        } else {
+            acc = _strikeToInfos[strike].accPutPerShare;
             _strikeToInfos[strike].putLP += amount;
         }
 
         // Set Lp position
-        LpInfos memory newLP = LpInfos(_isCall, strike, amount, block.timestamp, block.timestamp);
+        LpInfos memory newLP = LpInfos(_isCall, strike, amount, block.timestamp, (amount * acc) / 1e18);
         _lpIdToInfos[_lpCount] = newLP;
         IERC721x(_ERC721_LP).mint(msg.sender, _lpCount);
-
-        // Feed Strike History
-        _strikeToInfos[strike].updated = block.timestamp;
-        _strikeHistory[strike][_strikeToInfos[strike].updateCount] = _strikeToInfos[strike];
-        _strikeToInfos[strike].updateCount += 1;
 
         // Emit the deposit event
         emit Deposit(msg.sender, _isCall, _amount, strike, _lpCount);
@@ -416,17 +464,16 @@ contract MarketPool {
         return  (_lpCount - 1);     
     }
 
-    /// @notice Allows a user to withdraw assets from an LP position
-    /// @dev Claims rewards for the LP position before withdrawal and burns the NFT if fully withdrawn
-    /// @param _id The ID of the LP position to withdraw from
-    /// @return tokenAtoTransfer The amount of token A withdrawn by the LP (token decimals).
-    /// @return tokenBtoTransfer The amount of token B withdrawn by the LP (token decimals).
-    /// @return claimedRewards The additional reward amount received by the LP (token decimals).
+    /// @notice Withdraws liquidity from an LP position.
+    /// @dev Updates the strike accumulator via `_updateStrike()` before changing strike totals.
+    ///      Any pending rewards are realized through CollateralPool (which calls `claimRewards` on this contract),
+    ///      then liquidity is reduced. If the position is fully withdrawn, the LP NFT is burned.
+    /// @param _id The LP position NFT id.
+    /// @return tokenAtoTransfer Amount of Token A returned (token decimals).
+    /// @return tokenBtoTransfer Amount of Token B returned (token decimals).
+    /// @return claimedRewards Reward amount paid out via CollateralPool (token decimals after conversion/distribution logic).
     function withdraw(uint256 _id) external returns(uint256, uint256, uint256) {
         require(msg.sender == IERC721x(_ERC721_LP).ownerOf(_id), "You are not the owner");
-
-        // Claim Rewards
-        uint256 claimedRewards = ICollateralPool(IMain(_MAIN).getCollateralPool()).claimRewards(IMain(_MAIN).getMarketId(address(this)), _id, 0);
         
         // Get Infos
         LpInfos memory thisLP = _lpIdToInfos[_id];
@@ -435,53 +482,56 @@ contract MarketPool {
         uint256 availableFunds;
         uint256 tokenAtoTransfer;
         uint256 tokenBtoTransfer;
+        uint256 share;
+
+        // Strike Update
+        _updateStrike(thisLP.strike);
+
+        // Claim Rewards
+        uint256 claimedRewards = ICollateralPool(IMain(_MAIN).getCollateralPool()).claimRewards(IMain(_MAIN).getMarketId(address(this)), _id);
 
         // Call or Put ?
         if (thisLP.isCall) {
 
             availableFunds = strikeInfos.callLP - strikeInfos.callLU;
+            require(availableFunds > 0, "no available funds");
 
             if (strikeInfos.callLR > 0) {
 
-                liquidityReturned = (strikeInfos.callLR * 1e18)/thisLP.strike;
+                // A-equivalent of B in the pool
+                liquidityReturned = (strikeInfos.callLR * 1e18) / thisLP.strike;
 
-                // If available funds can't cover LP amount
-                if (availableFunds < thisLP.amount) {
+                // Safety: avoid underflow if rounding makes liquidityReturned slightly > availableFunds
+                if (liquidityReturned > availableFunds) {
+                    liquidityReturned = availableFunds;
+                }
 
-                    // Transfers
-                    tokenBtoTransfer = strikeInfos.callLR;
-                    tokenAtoTransfer = availableFunds - liquidityReturned;
+                // How much this LP is actually withdrawing now (in A-units of claim)
+                uint256 w = thisLP.amount;
+                if (w > availableFunds) w = availableFunds; // partial withdraw if not enough free funds
 
-                    // Changes
-                    _strikeToInfos[thisLP.strike].callLR = 0;
-                    _lpIdToInfos[_id].amount -= availableFunds;
-                    _strikeToInfos[thisLP.strike].callLP -= availableFunds;
+                // Compute Share
+                share = (w * 1e18) / availableFunds;
 
+                // Transfers ->
+                /*
+                Note:
+                uint256 bFree = strikeInfos.callLR;
+                uint256 aFree = availableFunds - liquidityReturned; // Token A sitting free
+                uint256 tokenBtoTransfer = (bFree * share) / 1e18;
+                uint256 tokenAtoTransfer = (aFree * share) / 1e18;
+                */
+                tokenBtoTransfer = (strikeInfos.callLR * share) / 1e18;
+                tokenAtoTransfer = ((availableFunds - liquidityReturned) * share) / 1e18;
+
+                // Changes
+                _strikeToInfos[thisLP.strike].callLR -= tokenBtoTransfer;
+                _strikeToInfos[thisLP.strike].callLP -= w;
+
+                if (w == thisLP.amount) {
+                    IERC721x(_ERC721_LP).burn(_id);
                 } else {
-
-                    if (liquidityReturned >= thisLP.amount ) {
-
-                        // Transfers
-                        tokenBtoTransfer = (thisLP.amount * thisLP.strike)/1e18;
-                        tokenAtoTransfer = 0;
-
-                        // Changes
-                        _strikeToInfos[thisLP.strike].callLR -= (thisLP.amount * thisLP.strike)/1e18;
-                        _strikeToInfos[thisLP.strike].callLP -= thisLP.amount;
-                        IERC721x(_ERC721_LP).burn(_id);
-
-                    } else {
-
-                        // Transfers
-                        tokenBtoTransfer = strikeInfos.callLR;
-                        tokenAtoTransfer = thisLP.amount - liquidityReturned;
-
-                        // Changes
-                        _strikeToInfos[thisLP.strike].callLR = 0;
-                        _strikeToInfos[thisLP.strike].callLP -= thisLP.amount;
-                        IERC721x(_ERC721_LP).burn(_id);
-                    }
-
+                    _lpIdToInfos[_id].amount -= w; // withdrew only the available part
                 }
 
             } else {
@@ -514,49 +564,44 @@ contract MarketPool {
         } else {
 
             availableFunds = strikeInfos.putLP - strikeInfos.putLU;
+            require(availableFunds > 0, "no available funds");
 
             if (strikeInfos.putLR > 0) {
 
-                liquidityReturned = (strikeInfos.putLR * thisLP.strike)/1e18;
+                // B-equivalent of A in the pool
+                liquidityReturned = (strikeInfos.putLR * thisLP.strike) / 1e18;
 
-                // If available funds can't cover LP amount
-                if (availableFunds < thisLP.amount) {
+                // Safety: avoid underflow if rounding makes liquidityReturned slightly > availableFunds
+                if (liquidityReturned > availableFunds) {
+                    liquidityReturned = availableFunds;
+                }
 
-                    // Transfers
-                    tokenAtoTransfer = strikeInfos.putLR;
-                    tokenBtoTransfer = availableFunds - liquidityReturned;
+                // How much this LP is actually withdrawing now (in B-units of claim)
+                uint256 w = thisLP.amount;
+                if (w > availableFunds) w = availableFunds; // partial withdraw if not enough free funds
 
-                    // Changes
-                    _strikeToInfos[thisLP.strike].putLR = 0;
-                    _lpIdToInfos[_id].amount -= availableFunds;
-                    _strikeToInfos[thisLP.strike].putLP -= availableFunds;
+                // Compute Share
+                share = (w * 1e18) / availableFunds;
 
+                // Transfers
+                /*
+                Note:
+                uint256 aFree = strikeInfos.putLR
+                uint256 bFree = availableFunds - liquidityReturned;
+                uint256 tokenAtoTransfer = (aFree * share) / 1e18;
+                uint256 tokenBtoTransfer = (bFree * share) / 1e18;
+                */
+                tokenAtoTransfer = (strikeInfos.putLR * share) / 1e18;
+                tokenBtoTransfer = ((availableFunds - liquidityReturned) * share) / 1e18;
+
+                // Changes
+                _strikeToInfos[thisLP.strike].putLR -= tokenAtoTransfer;
+                _strikeToInfos[thisLP.strike].putLP -= w;
+
+                if (w == thisLP.amount) {
+                    IERC721x(_ERC721_LP).burn(_id);
                 } else {
-
-                    if (liquidityReturned >= thisLP.amount) {
-
-                        // Transfers
-                        tokenAtoTransfer = (thisLP.amount * 1e18)/thisLP.strike;
-                        tokenBtoTransfer = 0;
-
-                        // Changes
-                        _strikeToInfos[thisLP.strike].putLR -= (thisLP.amount * 1e18)/thisLP.strike;
-                        _strikeToInfos[thisLP.strike].putLP -= thisLP.amount;
-                        IERC721x(_ERC721_LP).burn(_id);
-
-                    } else {
-
-                        // Transfers
-                        tokenAtoTransfer = strikeInfos.putLR;
-                        tokenBtoTransfer = thisLP.amount - liquidityReturned;
-
-                        // Changes
-                        _strikeToInfos[thisLP.strike].putLR = 0;
-                        _strikeToInfos[thisLP.strike].putLP -= thisLP.amount;
-                        IERC721x(_ERC721_LP).burn(_id);
-
-                    }
-
+                    _lpIdToInfos[_id].amount -= w; // withdrew only the available part
                 }
 
 
@@ -587,11 +632,6 @@ contract MarketPool {
             }
         }
 
-        // Feed Strike History
-        _strikeToInfos[thisLP.strike].updated = block.timestamp;
-        _strikeHistory[thisLP.strike][_strikeToInfos[thisLP.strike].updateCount] = _strikeToInfos[thisLP.strike];
-        _strikeToInfos[thisLP.strike].updateCount += 1;
-
         // Transfers
         if (tokenAtoTransfer > 0) {
             IERC20x(_TOKENA).transfer(msg.sender, toTokenADecimals(tokenAtoTransfer));
@@ -605,13 +645,15 @@ contract MarketPool {
         emit Withdraw(msg.sender, _id, toTokenADecimals(tokenAtoTransfer), toTokenBDecimals(tokenBtoTransfer));
 
         return (toTokenADecimals(tokenAtoTransfer), toTokenBDecimals(tokenBtoTransfer), claimedRewards);                
-    } 
+    }
 
-    /// @notice Opens a new option contract using liquidity provided in the pool
-    /// @dev Mints an NFT for the option contract and updates liquidity information
-    /// @param _isCall Specifies if the option is a call or a put
-    /// @param _strikeIndex The strike Index from getIntervals()
-    /// @param _amount The amount of assets for the option contract
+    /// @notice Opens a new perpetual option contract using available strike liquidity.
+    /// @dev Calls `_updateStrike(strike)` before modifying strike utilization (LU) to keep
+    ///      reward-per-share accounting correct for LPs at this strike.
+    ///      Mints a contract NFT and updates the user’s rent in CollateralPool.
+    /// @param _isCall True for call contract, false for put contract.
+    /// @param _strikeIndex Index returned by `getIntervals()` selecting the strike bucket.
+    /// @param _amount Contract size (token decimals).
     function openContract(bool _isCall, uint256 _strikeIndex, uint256 _amount) external {
         require(_amount > 1e2, "_amount too low");
         require(_strikeIndex < _INTERVALLENGTH / 2, "Wrong Strike Index");
@@ -625,7 +667,7 @@ contract MarketPool {
         uint256 availableLiquidity;
         uint256 rent;
         if (_isCall) {
-            strike = intervals[_strikeIndex + (_INTERVALLENGTH / 2)];
+            strike = intervals[_strikeIndex + (_INTERVALLENGTH / 2)];        
             amount = tokenATo18(_amount);
             availableLiquidity = _strikeToInfos[strike].callLP - _strikeToInfos[strike].callLU - (_strikeToInfos[strike].callLR*1e18)/strike;
             rent = ((((amount*strike)/1e18)*_YIELD)/1e18)/31536000;
@@ -637,8 +679,12 @@ contract MarketPool {
         }
 
         // Security
+        require(rent > 0, "Rent too low");
         require(ICollateralPool(IMain(_MAIN).getCollateralPool()).canOpenContract(msg.sender, rent), "No enough collateral");
         require(amount <= availableLiquidity, "No enough liquidity");
+
+        // Strike Update
+        _updateStrike(strike);
 
         // Update Liquidity Usage after checks
         if (_isCall == true) {
@@ -655,11 +701,6 @@ contract MarketPool {
         // Update CollateralPool
         ICollateralPool(IMain(_MAIN).getCollateralPool()).updateUserInfos(msg.sender, true, rent, block.timestamp);
 
-        // Feed Strike History
-        _strikeToInfos[strike].updated = block.timestamp;
-        _strikeHistory[strike][_strikeToInfos[strike].updateCount] = _strikeToInfos[strike];
-        _strikeToInfos[strike].updateCount += 1;
-
         // Emit the contract opened event
         emit ContractOpened(msg.sender, _isCall, _amount, strike, _contractCount);
 
@@ -667,9 +708,11 @@ contract MarketPool {
     }
 
     
-    /// @notice Closes an open contract position, settles based on the current price, and burns the contract NFT.
-    /// @dev Checks if the caller is the contract owner. Determines if the position is a call or put and settles the contract based on the current price relative to the strike price.
-    /// @param _id The unique ID of the contract to close.
+    /// @notice Closes an existing option contract and settles it against the current price.
+    /// @dev Calls `_updateStrike(strike)` before modifying strike utilization (LU) to ensure
+    ///      LP rewards remain correctly accounted.
+    ///      Burns the contract NFT and updates the user’s rent in CollateralPool.
+    /// @param _id The contract NFT id.
     function closeContract(uint256 _id) external {
         require(msg.sender == IERC721x(_ERC721_CONTRACT).ownerOf(_id), "You are not the owner");
 
@@ -677,6 +720,9 @@ contract MarketPool {
         ContractInfos memory userContract = _contractIdToInfos[_id];
         address contractOwner = IERC721x(_ERC721_CONTRACT).ownerOf(_id);
         uint256 currentPrice = getPrice();
+
+        // Strike Update
+        _updateStrike(userContract.strike);
 
         // Call or Put ?
         if (userContract.isCall) {
@@ -707,34 +753,35 @@ contract MarketPool {
         // Update CollateralPool
         ICollateralPool(IMain(_MAIN).getCollateralPool()).updateUserInfos(contractOwner, false, userContract.rent, block.timestamp);
 
-        // Feed Strike History
-        _strikeToInfos[userContract.strike].updated = block.timestamp;
-        _strikeHistory[userContract.strike][_strikeToInfos[userContract.strike].updateCount] = _strikeToInfos[userContract.strike];
-        _strikeToInfos[userContract.strike].updateCount += 1;
-
         // Burn the contract token and emit the event
         IERC721x(_ERC721_CONTRACT).burn(_id);
         emit ContractClosed(contractOwner, _id, userContract.amount);        
     }
 
-    /// @notice Liquidates a contract position on behalf of the collateral pool if conditions are met, and burns the contract NFT.
-    /// @dev Ensures that only the collateral pool can call this function. Settles the contract based on the current price relative to the strike price.
-    /// @param _id The unique ID of the contract to liquidate.
-    function liquidateContract(uint256 _id) external {
+    /// @notice Liquidates an undercollateralized contract on behalf of CollateralPool.
+    /// @dev Only callable by CollateralPool. Calls `_updateStrike(strike)` before changing strike utilization (LU)
+    ///      to preserve correct accumulator accounting, then settles and burns the contract NFT and updates rent.
+    /// @param _id The contract NFT id.
+    /// @param _liquidator The address performing liquidation (used for settlement flows if applicable).
+    function liquidateContract(uint256 _id, address _liquidator) external {
         require(msg.sender == IMain(_MAIN).getCollateralPool() , "Only Collateral Pool");
+        require(_liquidator != address(0), "Bad liquidator");
 
         // Get Infos
         ContractInfos memory userContract = _contractIdToInfos[_id];
         address contractOwner = IERC721x(_ERC721_CONTRACT).ownerOf(_id);
         uint256 currentPrice = getPrice();
 
+        // Strike Update
+        _updateStrike(userContract.strike);
+
         // Call or Put ?
         if (userContract.isCall) {
 
             // if contract ITM, then pay strike x amount and receive amount (token call), else nothing
             if (currentPrice > userContract.strike) {
-                IERC20x(_TOKENB).transferFrom(tx.origin, address(this), toTokenBDecimals((userContract.strike * userContract.amount)/1e18));
-                IERC20x(_TOKENA).transfer(tx.origin, toTokenADecimals(userContract.amount));
+                IERC20x(_TOKENB).transferFrom(_liquidator, address(this), toTokenBDecimals((userContract.strike * userContract.amount)/1e18));
+                IERC20x(_TOKENA).transfer(_liquidator, toTokenADecimals(userContract.amount));
                 _strikeToInfos[userContract.strike].callLR += (userContract.strike * userContract.amount)/1e18;
             }
 
@@ -744,8 +791,8 @@ contract MarketPool {
 
             // if contract ITM, then pay amount (token Put) and receive strike x amount, else nothing
             if (currentPrice < userContract.strike) {
-                IERC20x(_TOKENA).transferFrom(tx.origin, address(this), toTokenADecimals((userContract.amount * 1e18)/userContract.strike));
-                IERC20x(_TOKENB).transfer(tx.origin, toTokenBDecimals(userContract.amount));
+                IERC20x(_TOKENA).transferFrom(_liquidator, address(this), toTokenADecimals((userContract.amount * 1e18)/userContract.strike));
+                IERC20x(_TOKENB).transfer(_liquidator, toTokenBDecimals(userContract.amount));
                 _strikeToInfos[userContract.strike].putLR += (userContract.amount * 1e18)/userContract.strike;
                 
             }
@@ -757,28 +804,33 @@ contract MarketPool {
         // Update CollateralPool
         ICollateralPool(IMain(_MAIN).getCollateralPool()).updateUserInfos(contractOwner, false, userContract.rent, block.timestamp);
 
-        // Feed Strike History
-        _strikeToInfos[userContract.strike].updated = block.timestamp;
-        _strikeHistory[userContract.strike][_strikeToInfos[userContract.strike].updateCount] = _strikeToInfos[userContract.strike];
-        _strikeToInfos[userContract.strike].updateCount += 1;
-
         // Burn the contract token and emit the event
         IERC721x(_ERC721_CONTRACT).burn(_id);
         emit ContractClosed(contractOwner, _id, userContract.amount);        
     }
 
-    /// @notice Allows the collateral pool to claim accumulated rewards for a specific liquidity position.
-    /// @dev Only callable by the collateral pool. Updates the last claim timestamp for the position.
-    /// @param _id The unique ID of the liquidity position for which rewards are claimed.
-    /// @return rewards The amount of rewards claimed for the specified position (18 decimals).
-    function claimRewards(uint256 _id, uint256 _substractCount) external returns(uint256) {
+    /// @notice Realizes and returns rewards for a given LP position.
+    /// @dev Callable only by the CollateralPool. Updates the strike accumulator via `_updateStrike()`
+    ///      then computes rewards in O(1) using the reward-per-share model and updates the position’s
+    ///      `rewardDebt` to the latest accumulated value.
+    ///      This function does not transfer tokens; it returns the reward amount for CollateralPool to distribute.
+    /// @param _id The LP position NFT id.
+    /// @return rewards The realized rewards for this position (18 decimals).
+    function claimRewards(uint256 _id) external returns(uint256) {
         require(msg.sender == IMain(_MAIN).getCollateralPool() , "Only Collateral Pool");
 
-        // Get Infos
-        (uint256 rewards, uint256 newClaim) = getRewards(_id, _substractCount);
+        // Get infos
+        LpInfos memory thisLP = _lpIdToInfos[_id];
+
+        // Update Strike
+        _updateStrike(thisLP.strike);        
+
+        uint256 acc = thisLP.isCall ? _strikeToInfos[thisLP.strike].accCallPerShare : _strikeToInfos[thisLP.strike].accPutPerShare;
+        uint256 accumulated = (thisLP.amount * acc) / 1e18;
+        uint256 rewards = accumulated - thisLP.rewardDebt;
 
         // Update LP Infos
-        _lpIdToInfos[_id].lastClaim = newClaim;
+        _lpIdToInfos[_id].rewardDebt = accumulated;
 
         return rewards;
     }

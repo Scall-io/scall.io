@@ -9,15 +9,16 @@ interface IMarketPool {
         uint256 putLP;
         uint256 putLU;
         uint256 putLR;
-        uint256 updateCount;
-        uint256 updated;
+        uint256 accCallPerShare;
+        uint256 accPutPerShare;
+        uint256 lastUpdate;
     }  
     struct LpInfos {
         bool isCall;
         uint256 strike;
         uint256 amount;
         uint256 start;
-        uint256 lastClaim;
+        uint256 rewardDebt;
     }
     struct ContractInfos {
         bool isCall;
@@ -31,21 +32,22 @@ interface IMarketPool {
     function getContractInfos(uint256 _id) external view returns(ContractInfos memory);
     function getLpInfos(uint256 _id) external view returns(LpInfos memory);
     function getStrikeInfos(uint256 _strike) external view returns(StrikeInfos memory);
-    function getStrikeHistory(uint256 _strike, uint256 _index) external view returns(StrikeInfos memory);
-    function getRewards(uint256 _id, uint256 _substractCount) external view returns(uint256);
-    function claimRewards(uint256 _id, uint256 _substractCount) external returns(uint256 rewards);
+    function getRewards(uint256 _id) external view returns(uint256);
+    function claimRewards(uint256 _id) external returns(uint256 rewards);
     function openContract(bool _isCall, uint256 _strikeIndex, uint256 _amount) external;
     function closeContract(uint256 _id) external;
-    function liquidateContract(uint256 _id) external;
+    function liquidateContract(uint256 _id, address _liquidator) external;
     function setPriceFeed(address _priceFeed, uint256 _decimal) external;
     function setIntervalLength(uint256 _length) external;
     function setRange(uint256 _range) external;
+    function setMaxPriceStaleness(uint256 _maxPriceStaleness) external;
     function getTokenA() external view returns(address);
     function getTokenB() external view returns(address);
     function getPriceFeed() external view returns(address);
     function getIntervals() external view returns(uint256[] memory);
     function getIntervalLength() external view returns(uint256);
     function getRange() external view returns(uint256);
+    function getMaxPriceStaleness() external view returns(uint256);
     function getYield() external view returns(uint256);
     function getPrice() external view returns(uint256);
     function withdraw(uint256 _id) external returns(uint256, uint256, uint256);

@@ -13,7 +13,7 @@ const navLinks = [
   { href: "/earn", label: "Earn" },
   { href: "/dashboard", label: "Dashboard" },
   //{ href: "/how-it-works", label: "How It Works" },
-  { href: "/token", label: "Token" },
+  //{ href: "/token", label: "Token" },
 ];
 
 export default function Header() {

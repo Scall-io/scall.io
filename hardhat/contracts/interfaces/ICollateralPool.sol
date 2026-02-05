@@ -12,6 +12,6 @@ interface ICollateralPool {
     function balanceOf(address _user) external view returns(uint256);
     function updateUserInfos(address _user, bool _isAdding, uint256 _rent, uint256 _lastUpdate) external;
     function canOpenContract(address _user, uint256 _rent) external view returns(bool);
-    function claimRewards(uint256 _index, uint256 _id, uint256 _substractCount) external returns(uint256);
+    function claimRewards(uint256 _index, uint256 _id) external returns(uint256);
     function needLiquidation(address _user) external view returns(bool);
 }

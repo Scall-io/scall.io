@@ -24,6 +24,7 @@
 
 # Test
 /test
+test.txt
 
 # Contracts
 /contracts/fakeOracle.sol

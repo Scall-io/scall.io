@@ -148,106 +148,47 @@ contract UserInfos {
 
             availableFunds = strikeInfos.callLP - strikeInfos.callLU;
 
+            if (availableFunds == 0) return (0, 0);
+
+            uint256 w = thisLP.amount;
+            if (w > availableFunds) w = availableFunds;
+
             if (strikeInfos.callLR > 0) {
+                liquidityReturned = (strikeInfos.callLR * 1e18) / thisLP.strike;
+                if (liquidityReturned > availableFunds) liquidityReturned = availableFunds;
 
-                liquidityReturned = (strikeInfos.callLR * 1e18)/thisLP.strike;
+                uint256 share = (w * 1e18) / availableFunds;
 
-                // If available funds can't cover LP amount
-                if (availableFunds < thisLP.amount) {
-
-                    // Transfers
-                    withdrawabletokenB = strikeInfos.callLR;
-                    withdrawabletokenA = availableFunds - liquidityReturned;
-
-                } else {
-
-                    if (liquidityReturned >= thisLP.amount ) {
-
-                        // Transfers
-                        withdrawabletokenB = (thisLP.amount * thisLP.strike)/1e18;
-                        withdrawabletokenA = 0;
-
-                    } else {
-
-                        // Transfers
-                        withdrawabletokenB = strikeInfos.callLR;
-                        withdrawabletokenA = thisLP.amount - liquidityReturned;
-
-                    }
-
-                }
-
+                withdrawabletokenB = (strikeInfos.callLR * share) / 1e18;
+                withdrawabletokenA = ((availableFunds - liquidityReturned) * share) / 1e18;
             } else {
-
-                // If available funds can't cover LP amount
-                if (availableFunds < thisLP.amount) {
-
-                    // Transfers
-                    withdrawabletokenB = 0;
-                    withdrawabletokenA = availableFunds;
-
-                } else {
-
-                    // Transfers
-                    withdrawabletokenB = 0;
-                    withdrawabletokenA = thisLP.amount;
-
-                }
-
-            }
-            
+                // no LR => only TokenA withdrawable
+                withdrawabletokenA = w;
+                withdrawabletokenB = 0;
+            }            
 
         } else {
 
             availableFunds = strikeInfos.putLP - strikeInfos.putLU;
 
+            if (availableFunds == 0) return (0, 0);
+
+            uint256 w = thisLP.amount;
+            if (w > availableFunds) w = availableFunds;
+
             if (strikeInfos.putLR > 0) {
+                liquidityReturned = (strikeInfos.putLR * thisLP.strike) / 1e18;
+                if (liquidityReturned > availableFunds) liquidityReturned = availableFunds;
 
-                liquidityReturned = (strikeInfos.putLR * thisLP.strike)/1e18;
+                uint256 share = (w * 1e18) / availableFunds;
 
-                // If available funds can't cover LP amount
-                if (availableFunds < thisLP.amount) {
-
-                    // Transfers
-                    withdrawabletokenA = strikeInfos.putLR;
-                    withdrawabletokenB = availableFunds - liquidityReturned;
-
-                } else {
-
-                    if (liquidityReturned >= thisLP.amount) {
-
-                        // Transfers
-                        withdrawabletokenA = (thisLP.amount * 1e18)/thisLP.strike;
-                        withdrawabletokenB = 0;
-
-                    } else {
-
-                        // Transfers
-                        withdrawabletokenA = strikeInfos.putLR;
-                        withdrawabletokenB = thisLP.amount - liquidityReturned;
-
-                    }
-
-                }
-
-
+                withdrawabletokenA = (strikeInfos.putLR * share) / 1e18;
+                withdrawabletokenB = ((availableFunds - liquidityReturned) * share) / 1e18;
             } else {
-
-                // If available funds can't cover LP amount
-                if (availableFunds < thisLP.amount) {
-
-                    // Transfers
-                    withdrawabletokenA = 0;
-                    withdrawabletokenB = availableFunds;
-
-                } else {
-
-                    // Transfers
-                    withdrawabletokenA = 0;
-                    withdrawabletokenB = thisLP.amount;
-
-                }
+                withdrawabletokenA = 0;
+                withdrawabletokenB = w;
             }
+
         }
 
         return (withdrawabletokenA, withdrawabletokenB);

@@ -27,7 +27,7 @@ contract Main is Ownable {
     constructor(address _collateralToken, uint256 _collateralTokenDecimals) Ownable(msg.sender) {
         _COLLATERALTOKEN = _collateralToken;
         _COLLATERALTOKEN_DECIMALS = _collateralTokenDecimals;
-        _LIQUIDATIONTHRESHOLD = 172800; // 2 days
+        _LIQUIDATIONTHRESHOLD = 345600; // 4 days
         _LIQUIDATIONPENALTY = 12e16; // 12 %
         _MINCOLLATERAL = 604800; // 1 week
         //_PROTOCOLFEES = 10e16; // 10%

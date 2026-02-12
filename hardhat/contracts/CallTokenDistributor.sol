@@ -252,6 +252,19 @@ contract CallTokenDistributor {
         IERC20x(_CALLTOKEN).transfer(msg.sender, _amount);
     }
 
+    // Helper for distributeRewards function
+    struct Local {
+        uint256 currentTime;
+        uint256 marketCount;
+        address marketAddr;
+        address ERC721_LPAddr;
+        uint256 totalSupply;
+        uint256 lpID;
+        uint256 price;
+        uint256 eligibleAmount;
+        uint256 totalEligibleAmount;
+    }
+
     /**
     * @notice Distributes `_amount` of CALL token rewards across eligible LPs proportionally to their eligible size.
     * @dev Only callable by the protocol owner (`IOwnable(_MAIN).owner()`).
@@ -262,117 +275,111 @@ contract CallTokenDistributor {
     *          - Allocates `(_amount * eligibleAmount / totalEligibleAmount)` to the LP NFT owner via `updateLP()`
     * @param _amount Total CALL token amount to allocate across eligible LPs (accounting only).
     */
-    /*
     function distributeRewards(uint256 _amount) public {
         require(msg.sender == IOwnable(_MAIN).owner(), "You are not the owner");
-        uint256 currentTime = block.timestamp;
-        uint256 marketCount = IMain(_MAIN).getMarketCount();
-        address marketAddr;
-        address ERC721_LPAddr;
-        uint256 totalSupply;
-        uint256 lpID;
+        Local memory local;
+        local.currentTime = block.timestamp;
+        local.marketCount = IMain(_MAIN).getMarketCount();
         IMarketPool.LpInfos memory lpInfos;
         IMarketPool.StrikeInfos memory strikeInfos;
-        uint256 price;
-        uint256 eligibleAmount;
 
         // Get Eligible amount
-        uint256 totalEligibleAmount = getEligibleAmount();
-        require(totalEligibleAmount > 0, "No eligible LPs");
+        local.totalEligibleAmount = getEligibleAmount();
+        require(local.totalEligibleAmount > 0, "No eligible LPs");
 
         // For all markets
-        for(uint256 i = 0 ; i < marketCount ; i++) {
-            marketAddr = IMain(_MAIN).getIdToMarket(i);
-            ERC721_LPAddr = IMarketPool(marketAddr).getERC721_LP();
-            totalSupply = IERC721x(ERC721_LPAddr).totalSupply();
+        for(uint256 i = 0 ; i < IMain(_MAIN).getMarketCount() ; i++) {
+            local.marketAddr = IMain(_MAIN).getIdToMarket(i);
+            local.ERC721_LPAddr = IMarketPool(local.marketAddr).getERC721_LP();
+            local.totalSupply = IERC721x(local.ERC721_LPAddr).totalSupply();
 
             // For all LPs contract
-            for (uint256 ii = 0; ii < totalSupply; ii++) {
-                lpID = IERC721x(ERC721_LPAddr).tokenByIndex(ii);
-                lpInfos = IMarketPool(marketAddr).getLpInfos(lpID);
+            for (uint256 ii = 0; ii < local.totalSupply; ii++) {
+                local.lpID = IERC721x(local.ERC721_LPAddr).tokenByIndex(ii);
+                lpInfos = IMarketPool(local.marketAddr).getLpInfos(local.lpID);
 
                 // If active more than _REQUIREDDURATION
-                if (currentTime - lpInfos.start > _REQUIREDDURATION) {
-                    price = IMarketPool(marketAddr).getPrice();
+                if (local.currentTime - lpInfos.start > _REQUIREDDURATION) {
+                    local.price = IMarketPool(local.marketAddr).getPrice();
 
                     // If isCall
                     if (lpInfos.isCall) {
 
                         // If ITM
-                        if (price > lpInfos.strike ) {
-                            strikeInfos = IMarketPool(marketAddr).getStrikeInfos(lpInfos.strike);
+                        if (local.price > lpInfos.strike ) {
+                            strikeInfos = IMarketPool(local.marketAddr).getStrikeInfos(lpInfos.strike);
 
                             // If callLU >= LP amount
                             if (strikeInfos.callLU >= lpInfos.amount) {
 
                                 // Full amount is eligible (USD equivalent)
-                                eligibleAmount = (lpInfos.amount * lpInfos.strike) / 1e18;
+                                local.eligibleAmount = (lpInfos.amount * lpInfos.strike) / 1e18;
 
                                 // Distribute Rewards
-                                updateLP(IERC721x(ERC721_LPAddr).ownerOf(lpID), ((eligibleAmount * 1e18 / totalEligibleAmount) * _amount) / 1e18);
+                                updateLP(IERC721x(local.ERC721_LPAddr).ownerOf(local.lpID), ((local.eligibleAmount * 1e18 / local.totalEligibleAmount) * _amount) / 1e18);
 
-                            } else /* callLU < LP amount */ /* {
+                            } else /* callLU < LP amount */ {
 
                                 // Only used part is eligible (USD equivalent)
-                                eligibleAmount = ((strikeInfos.callLU * 1e18) / lpInfos.amount) * ((lpInfos.amount * lpInfos.strike) / 1e18) / 1e18;
+                                local.eligibleAmount = ((strikeInfos.callLU * 1e18) / lpInfos.amount) * ((lpInfos.amount * lpInfos.strike) / 1e18) / 1e18;
 
                                 // Distribute Rewards
-                                updateLP(IERC721x(ERC721_LPAddr).ownerOf(lpID), ((eligibleAmount * 1e18 / totalEligibleAmount) * _amount) / 1e18);
+                                updateLP(IERC721x(local.ERC721_LPAddr).ownerOf(local.lpID), ((local.eligibleAmount * 1e18 / local.totalEligibleAmount) * _amount) / 1e18);
 
                             }
 
-                        } else /* is OTM */ /*{
-                            uint256[] memory intervals = IMarketPool(marketAddr).getIntervals();
+                        } else /* is OTM */ {
+                            uint256[] memory intervals = IMarketPool(local.marketAddr).getIntervals();
 
                             // If strike is part of Intervals
                             if (isPartOf(lpInfos.strike, intervals)) {
 
                                 // Full amount eligible (USD equivalent)
-                                eligibleAmount = (lpInfos.amount * lpInfos.strike) / 1e18;
+                                local.eligibleAmount = (lpInfos.amount * lpInfos.strike) / 1e18;
 
                                 // Distribute Rewards
-                                updateLP(IERC721x(ERC721_LPAddr).ownerOf(lpID), ((eligibleAmount * 1e18 / totalEligibleAmount) * _amount) / 1e18);
+                                updateLP(IERC721x(local.ERC721_LPAddr).ownerOf(local.lpID), ((local.eligibleAmount * 1e18 / local.totalEligibleAmount) * _amount) / 1e18);
 
                             }
 
                         }
 
-                    } else /* is put */ /*{
+                    } else /* is put */ {
 
                         // If ITM
-                        if (price < lpInfos.strike ) {
-                            strikeInfos = IMarketPool(marketAddr).getStrikeInfos(lpInfos.strike);
+                        if (local.price < lpInfos.strike ) {
+                            strikeInfos = IMarketPool(local.marketAddr).getStrikeInfos(lpInfos.strike);
 
                             // If putLU >= LP amount
                             if (strikeInfos.putLU >= lpInfos.amount) {
 
                                 // Full amount eligible
-                                eligibleAmount = lpInfos.amount;
+                                local.eligibleAmount = lpInfos.amount;
 
                                 // Distribute Rewards
-                                updateLP(IERC721x(ERC721_LPAddr).ownerOf(lpID), ((eligibleAmount * 1e18 / totalEligibleAmount) * _amount) / 1e18);
+                                updateLP(IERC721x(local.ERC721_LPAddr).ownerOf(local.lpID), ((local.eligibleAmount * 1e18 / local.totalEligibleAmount) * _amount) / 1e18);
 
-                            } else /* putLU < LP amount *//* {
+                            } else /* putLU < LP amount */ {
 
                                 // Only used part is eligible
-                                eligibleAmount = strikeInfos.putLU;
+                                local.eligibleAmount = strikeInfos.putLU;
 
                                 // Distribute Rewards
-                                updateLP(IERC721x(ERC721_LPAddr).ownerOf(lpID), ((eligibleAmount * 1e18 / totalEligibleAmount) * _amount) / 1e18);
+                                updateLP(IERC721x(local.ERC721_LPAddr).ownerOf(local.lpID), ((local.eligibleAmount * 1e18 / local.totalEligibleAmount) * _amount) / 1e18);
 
                             }
 
-                        } else /* is OTM */ /*{
-                            uint256[] memory intervals = IMarketPool(marketAddr).getIntervals();
+                        } else /* is OTM */ {
+                            uint256[] memory intervals = IMarketPool(local.marketAddr).getIntervals();
 
                             // If strike is part of Intervals
                             if (isPartOf(lpInfos.strike, intervals)) {
 
                                 // Full amount eligible
-                                eligibleAmount = lpInfos.amount;
+                                local.eligibleAmount = lpInfos.amount;
 
                                 // Distribute Rewards
-                                updateLP(IERC721x(ERC721_LPAddr).ownerOf(lpID), ((eligibleAmount * 1e18 / totalEligibleAmount) * _amount) / 1e18);
+                                updateLP(IERC721x(local.ERC721_LPAddr).ownerOf(local.lpID), ((local.eligibleAmount * 1e18 / local.totalEligibleAmount) * _amount) / 1e18);
 
                             }
                             
@@ -383,7 +390,6 @@ contract CallTokenDistributor {
         }
 
     }
-    */
 
     /**
     * @notice Updates the minimum required duration for LP eligibility.
